@@ -14,7 +14,52 @@ pip install .
 
 # Usage
 ## Basic Usage
-The `basic_usage.py` example demonstrates how to create a simple recursive namespace:
+
+The **RecursiveNamespace** class can be used in the same way as Python's **SimpleNamespace** class, but in a recursive fashion. The **RecursiveNamespace** class can be instantiated with a dictionary or keyword arguments. The **RecursiveNamespace** class also provides a `to_dict()` method that returns a dictionary representation of the namespace.
+
+I prefer to use the class as the following
+
+```python
+results = RN(
+    params=RN(
+        alpha=1.0,
+        beta=2.0,
+        dataset_name='dataset_name',
+        dataset_path='dataset_path',
+        classifier_name='classifier_name',
+    ),
+    metrics=RN(
+        accuracy=98.79,
+        f1=97.62
+    )
+)
+
+print(results.params.k1) # 1.0
+print(results.metrics.accuracy) # 98.79
+```
+
+Then I can add more information on the fly.
+
+```python
+results.experiment_name = 'experiment_name'
+results.params.dataaset_version = 'dataset_version'
+results.params.gamma = 0.35
+print(results.params.gamma) # 0.35
+```
+
+Then I'd convert it to nested or flattened dictionary.
+  
+```python
+output_dict = results.to_dict()
+output_dict_flat = results.to_dict(flatten_sep='_')  # flattened dictionary
+```
+Or just convert metrics to dictionary.
+
+```python
+metrics_dict = results.metrics.to_dict()
+```
+
+Another usage would be to convert a dictionary to a recursive namespace.
 
 ```python
 from pprint import pprint
@@ -40,13 +85,6 @@ print(rn.to_dict()) # {'name': 'John Doe', 'age': 30, 'address': {'street': '123
 
 pprint(rn.to_dict(flatten_sep='_')) 
 # {'name': 'John Doe', 'age': 30, 'address_street': '123 Main St', 'address_city': 'Anytown'}
-
-
-rn.scores = RecursiveNamespace({'score-1': 98.4, 'score-2': 100})
-print(rn.scores.score_1) # 98.4
-print(rn.scores.score_2) # 100
-rn.scores.score_3 = 99.07
-print(rn.scores.score_3) # 99.07
 ```
 
 # Testing

@@ -40,6 +40,8 @@ class RecursiveNamespace(SimpleNamespace):
     def __process(self, val):
         if isinstance(val, dict):
             return RecursiveNamespace(**val)
+        elif isinstance(val, str):
+            return val
         elif(hasattr(val, '__iter__') and type(val) in self.__supported_types_):
             lst = [self.__process(val=v) for v in val]
             try:
@@ -146,7 +148,7 @@ class RecursiveNamespace(SimpleNamespace):
                 pairs.append((k, v.to_dict()))
             elif isinstance(v, dict):
                 pairs.append((k, v))
-            elif hasattr(v, '__iter__'):
+            elif hasattr(v, '__iter__') and type(v) in self.__supported_types_:
                 pairs.append((k, self.__iter_to_dict(v)))
             else:
                 pairs.append((k, v))

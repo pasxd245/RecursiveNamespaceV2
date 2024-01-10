@@ -171,10 +171,10 @@ class RecursiveNamespace(SimpleNamespace):
         return type(iterable)(elements)
     
 if __name__ == '__main__':
-    print("rname1 = RecursiveNamespace(a=1, b=2,c=RecursiveNamespace(d=3, e=4))")
-    rname1 = RecursiveNamespace(a=1, b=2,c=RecursiveNamespace(d=3, e=4))
-    print("rname2 = RecursiveNamespace({'a':1, 'b':2, 'c':{'d':3, 'e':4}})")
-    rname2 = RecursiveNamespace({'a':1, 'b':2, 'c':{'d':3, 'e':4}})
+    print("rname1 = RecursiveNamespace(a=1, b=2,c=RecursiveNamespace(d=3, e=444))")
+    rname1 = RecursiveNamespace(a=1, b=2,c=RecursiveNamespace(d=3, e='444'))
+    print("rname2 = RecursiveNamespace({'a':1, 'b':2, 'c':{'d':3, 'e':444}})")
+    rname2 = RecursiveNamespace({'a':1, 'b':2, 'c':{'d':3, 'e':'444'}})
 
     print(rname1)
     print(rname2)
@@ -184,7 +184,7 @@ if __name__ == '__main__':
         '11':11,
         'a-': 1, 
         'b': (2,3), 
-        'c': [4,{'c5':5}],
+        'c': [4,{'c5':'555'}],
         'd': set([6,'7',8]),
         'e': {
             'e_1': 9, 
@@ -271,56 +271,3 @@ if __name__ == '__main__':
 if __name__=='__main__':
     pass
 
-
-class RecursiveNamespace_2():
-    def __init__(self, _data=None, **kwargs) -> None:
-        if(isinstance(_data, dict)):
-            kwargs.update(_data)
-        elif(_data is not None):
-            kwargs['_data'] = _data
-        self.update(**kwargs)
-
-    def update(self, **kwargs):
-        self.__dict__.update(kwargs)
-        for key, val in kwargs.items():
-            if(isinstance(val, dict)):
-                val = self.__class__(**val)
-            # elif val is iterable
-            elif(hasattr(val, '__iter__')):
-                val_ = self.__class__(val)
-
-            self.__dict__[key] = val
-            
-    def __repr__(self) -> str:
-        return str(self.__dict__)
-    def __str__(self) -> str:
-        return str(self.__dict__)
-    def __getitem__(self, key):
-        return self.__dict__[key]
-    def __setitem__(self, key, value):
-        self.__dict__[key] = value
-    def __delitem__(self, key):
-        del self.__dict__[key]
-    def __contains__(self, key):
-        return key in self.__dict__
-    def __iter__(self):
-        return iter(self.__dict__)
-    def __len__(self):
-        return len(self.__dict__)
-    def keys(self):
-        return self.__dict__.keys()
-    def values(self):
-        return self.__dict__.values()
-    def items(self):
-        return self.__dict__.items()
-    def get(self, key, default=None):
-        return self.__dict__.get(key, default)
-    def copy(self, deep=False):
-        if(deep):
-            return self.__class__(**self.__dict__)
-        else:
-            return self.__class__(**self.__dict__)
-    def to_dict(self):
-        return self.__dict__
-    def from_dict(self, d):
-        self.__dict__.update(d)

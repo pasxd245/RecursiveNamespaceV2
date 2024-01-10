@@ -11,8 +11,8 @@ results = RN(
         classifier_name='classifier_name',
     ),
     metrics=RN(
-        accuracy=0.0,
-        f1=0.0,
+        accuracy=98.79,
+        f1=97.62
     )
 )
 
@@ -21,7 +21,7 @@ print(results.metrics.accuracy)
 # then I can add more information on the fly
 results.experiment_name = 'experiment_name'
 results.params.dataaset_version = 'dataset_version'
-results.params.gamma = 3.0
+results.params.gamma = 0.35
 
 # Then I'd convert it to dictionary
 output_dict = results.to_dict()
@@ -60,12 +60,5 @@ print("------------")
 print("to_dict() flattening with '_' separator:")
 pprint(rn.to_dict(flatten_sep='_'))
 
-
-print("------------")
-rn.scores = RN({'score-1': 98.4, 'score-2': 100})
-print(f"rn.scores.score_1: {rn.scores.score_1}")
-print(f"rn.scores.score_2: {rn.scores.score_2}")
-rn.scores.score_3 = 99.07
-print(f"rn.scores.score_3: {rn.scores.score_3}")
 
 # I personally would like to use it like the following

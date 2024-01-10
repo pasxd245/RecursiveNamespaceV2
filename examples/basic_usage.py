@@ -20,7 +20,7 @@ print(results.params.k1)
 print(results.metrics.accuracy)
 # then I can add more information on the fly
 results.experiment_name = 'experiment_name'
-results.params.dataaset_version = 'dataset_version'
+results.params.dataset_version = 'dataset_version'
 results.params.gamma = 0.35
 
 # Then I'd convert it to dictionary

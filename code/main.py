@@ -1,7 +1,7 @@
 # %%
-import types
 import sys
-from typing import Any, SimpleNamespace
+from typing import Any
+from types import SimpleNamespace
 
 import collections
 def flatten_dict(d, sep='_'):

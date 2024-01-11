@@ -10,8 +10,13 @@ setup(
     long_description_content_type='text/markdown',  # Type of the long description
     url='https://github.com/HessamLa/RecursiveNamespace',  # Link to your package's GitHub repo or website
  
+    # package_dir={'RecursiveNamespace': 'src/RecursiveNamespace'},
+    # packages=['RecursiveNamespace']
+
     package_dir={'': 'src'},
+    # package_dir={'RecursiveNamespace': 'src/RecursiveNamespace'},
     packages=find_packages(where='src'),
+    # packages=find_packages(where='src'),
     # packages=find_packages(where='.', include=['RecursiveNamespace']),  # Find all packages and subpackages
     install_requires=[  # List of dependencies
     ],

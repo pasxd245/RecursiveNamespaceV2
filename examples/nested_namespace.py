@@ -1,4 +1,4 @@
-from RecursiveNamespace import RecursiveNamespace
+from recursivenamespace import recursivenamespace
 
 # Creating a nested recursive namespace
 data = {
@@ -11,7 +11,7 @@ data = {
     }
 }
 
-rn = RecursiveNamespace(data)
+rn = recursivenamespace(data)
 
 print(rn.employee.name)  # Output: Jane Smith
 print(rn.employee.details.position)  # Output: Developer

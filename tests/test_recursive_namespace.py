@@ -1,5 +1,5 @@
 import unittest
-from RecursiveNamespace import RecursiveNamespace as rn
+from recursivenamespace import recursivenamespace as rn
 
 
 class TestRecursiveNamespace(unittest.TestCase):
@@ -20,10 +20,10 @@ class TestRecursiveNamespace(unittest.TestCase):
         self.assertEqual(r.k_2.k3, 'v3')
 
     def test_equal(self):
-        # Test basic functionality of RecursiveNamespace
-        print("rname1 = RecursiveNamespace(a=1, b=2,c=RecursiveNamespace(d=3, e=4))")
+        # Test basic functionality of recursivenamespace
+        print("rname1 = recursivenamespace(a=1, b=2,c=recursivenamespace(d=3, e=4))")
         rname1 = rn(a=1, b=2,c=rn(d=3, e='404'))
-        print("rname2 = RecursiveNamespace({'a':1, 'b':2, 'c':{'d':3, 'e':'404'}})")
+        print("rname2 = recursivenamespace({'a':1, 'b':2, 'c':{'d':3, 'e':'404'}})")
         rname2 = rn({'a':1, 'b':2, 'c':{'d':3, 'e':'404'}})
         print(rname1)
         print(rname2)

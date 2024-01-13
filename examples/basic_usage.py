@@ -15,6 +15,7 @@ results = rns(
     )
 )
 # I can access elements as dictionary keys or namespace attributes
+print(results.params.alpha) # 1.0
 print(results.params['alpha']) # 1.0
 print(results['metrics'].accuracy) # 98.79
 

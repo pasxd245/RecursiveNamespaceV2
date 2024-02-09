@@ -16,7 +16,7 @@ def flatten_dict(d, sep='_'):
     return newd
 
 class recursivenamespace(SimpleNamespace):
-    __VERSION__='0.0.2'
+    __VERSION__='0.0.3'
     def __init__(self,data={}, accepted_iter_types=[], **kwargs):
         self.__key_ = ''
         self.__supported_types_ = [list, tuple, set] + accepted_iter_types
@@ -88,6 +88,7 @@ class recursivenamespace(SimpleNamespace):
         if(len(s)>0):   s = s[:-2] # remove the last ', '
         s = f"RNS({s})"
         return s
+
     def __str__(self) -> str:
         return self.__repr__()
     
@@ -119,6 +120,26 @@ class recursivenamespace(SimpleNamespace):
     def __contains__(self, key):
         key = self.__re(key)
         return key in self.__dict__
+    
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        return result
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, deepcopy(v, memo))
+        return result
+
+    def copy(self):
+        return self.__copy__()
+    
+    def deepcopy(self):
+        return self.__deepcopy__()
     
     def pop(self, key):
         key = self.__re(key)

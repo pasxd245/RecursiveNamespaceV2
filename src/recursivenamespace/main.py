@@ -4,6 +4,9 @@ from typing import Any
 from types import SimpleNamespace
 
 import collections
+
+__all__ = ['recursivenamespace']
+
 def flatten_dict(d, sep='_'):
     newd = {}
     for k,v in d.items():
@@ -16,7 +19,7 @@ def flatten_dict(d, sep='_'):
     return newd
 
 class recursivenamespace(SimpleNamespace):
-    __VERSION__='0.0.3'
+    __VERSION__='0.0.4'
     def __init__(self,data={}, accepted_iter_types=[], **kwargs):
         self.__key_ = ''
         self.__supported_types_ = [list, tuple, set] + accepted_iter_types
@@ -141,9 +144,15 @@ class recursivenamespace(SimpleNamespace):
     def deepcopy(self):
         return self.__deepcopy__()
     
-    def pop(self, key):
+    def pop(self, key, default=None):
         key = self.__re(key)
-        del self[key]
+        if(key in self.__protected_keys_):
+            raise KeyError(f"The key '{key}' is protected.")
+        if key in self.__dict__:
+            val = self.__dict__[key]
+            del self.__dict__[key]
+            return val
+        else: return default
     
     def items(self):
         return [(k,v) for k,v in self.__dict__.items() if k not in self.__protected_keys_]

@@ -7,7 +7,7 @@ setup(
     name='RecursiveNamespace', 
     version='0.2.0',  
     author='Hamidreza Lotfalizadeh (Hessam)',
-    author_email='hlotfali_at_purdue_edu',  
+    author_email='HLOTFALI_at_PURDUE_EDU@random.site',  
     description='Recursive Namespace. An extension of SimpleNamespace',
     long_description=long_description,
     long_description_content_type='text/markdown',

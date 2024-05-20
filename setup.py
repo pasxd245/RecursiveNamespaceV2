@@ -5,7 +5,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
 
 setup(
     name='RecursiveNamespace', 
-    version='0.2.0',  
+    version='0.2.02',  
     author='Hamidreza Lotfalizadeh (Hessam)',
     author_email='HLOTFALI_at_PURDUE_EDU@random.site',  
     description='Recursive Namespace. An extension of SimpleNamespace',

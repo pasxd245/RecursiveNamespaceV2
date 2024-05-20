@@ -47,7 +47,7 @@ print(rn.friends[1])   # Tom, yes it does recognize iterables
 # convert back to dictionary
 data2 = rn.to_dict()
 print(type(data2)) # <class 'dict'>
-print(data2)       # {'name': 'John', 'age': 30, 'address': {'street': '123 Main St', 'city': 'Anytown'}}
+print(data2 == data) # True
 print(data2['address']['city']) # Anytown
 print(data2['friends'][1])      # Tom
 ```
@@ -140,10 +140,10 @@ print(results.params['some-key'] is results.params['some_key']) # True
 
 # Testing
 To run tests, navigate to the project's root directory and execute:
-
 ```bash
 python -m unittest discover tests
 ```
+
 The `test_recursive_namespace.py` file contains tests for the **RecursiveNamespace** class.
 
 # Contributing

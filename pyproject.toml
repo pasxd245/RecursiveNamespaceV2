@@ -1,0 +1,79 @@
+[build-system]
+# Minimum requirements for the build system to execute.
+requires = ["flit_core >=3.2,<4", "versioneer[toml]"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = 'RecursiveNamespaceV2'
+dynamic = ['version']
+description = 'Recursive Namespace. An extension of SimpleNamespace. Enhance get/set and parse from JSON'
+readme = 'README.md'
+authors = [{ name = 'VienPQ', email = 'pasxd245@gmail.com' }]
+license = { file = 'LICENSE' }
+requires-python = '>=3.8'
+dependencies = []
+classifiers = [
+    'Programming Language :: Python :: 3',
+    'License :: OSI Approved :: MIT License',
+    'Operating System :: OS Independent',
+]
+
+[project.urls]
+repository = 'https://github.com/pasxd245/RecursiveNamespaceV2'
+
+[project.optional-dependencies]
+test = ['pytest>=6.0', 'coverage>=7.0']
+
+# See the docstring in versioneer.py for instructions. Note that you must
+# re-run 'versioneer.py setup' after changing this section, and commit the
+# resulting files.
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+tag_prefix = "v"
+parentdir_prefix = "recursivenamespacev2-"
+versionfile_source = "src/recursivenamespace/_version.py"
+versionfile_build = "recursivenamespace/_version.py"
+
+[tool.flit.module]
+name = "recursivenamespace"
+
+[tool.ruff]
+line-length = 80
+target-version = "py310"
+fix = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "--strict-markers --strict-config --capture=no --durations=30 --junitxml=out/test-data.xml"
+testpaths = ["tests"]
+junit_family = "xunit2"
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+ignore_errors = false
+show_missing = true
+exclude_lines = [
+    # Have to re-enable the standard pragma
+    "pragma: no cover",
+    # Don't complain about missing debug-only code:s
+    "def __repr__",
+    "if self.debug",
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "AbstractMethodError",
+    # Don't complain if non-runnable code isn't run:
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "coverage_html_report"
+
+[tool.codespell]
+ignore-words-list = "rns"
+ignore-regex = 'https://([\w/\.])+'

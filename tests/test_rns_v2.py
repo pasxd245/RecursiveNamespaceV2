@@ -18,6 +18,8 @@ data = {
     "s": set([6, "7", 8]),
     "hello": "hello",
     "d": {"e-1": 9, "e-2": {"e_2_1": 10, "e_2_2": (11,)}, "e_3": [12, 13]},
+    "v1": "Hello",
+    "v2": "World",
 }
 rns_1 = RecursiveNamespace(data, use_raw_key=False)
 rns_2 = RecursiveNamespace(data, use_raw_key=True)
@@ -25,7 +27,13 @@ rns_2 = RecursiveNamespace(data, use_raw_key=True)
 
 @rns.rns()
 @dataclasses.dataclass
-class Item:
+class FreeItem:
+    v1: str
+    v2: int
+
+
+@dataclasses.dataclass
+class SchemaItem:
     v1: str
     v2: int
 
@@ -68,10 +76,18 @@ def test_pickle():
 
 
 def test_decorator():
-    a = Item("Hello", 1)
+    a = FreeItem("Hello", 1)
     pprint(a)
     assert a.v1 == "Hello"
     assert isinstance(a, RecursiveNamespace)
+
+
+def test_schema():
+    a: SchemaItem = rns_1.as_schema(SchemaItem)
+    pprint(a)
+    assert a.v1 == "Hello"
+    assert a.v2 == "World"
+    assert isinstance(a, SchemaItem)
 
 
 def test_flattern():

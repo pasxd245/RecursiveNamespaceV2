@@ -442,6 +442,16 @@ class recursivenamespace(SimpleNamespace):
                 self.__logger.warning(f"KeyNotFound - {key}", exc_info=1)
             return or_else
 
+    def as_schema(self, schema_cls, /, **kwargs):
+        if not dataclasses.is_dataclass(schema_cls):
+            raise TypeError(f"The 'schema_cls' must be a DataClass type.")
+        # @else:
+        fields = dataclasses.fields(schema_cls)
+        for field in fields:
+            name = field.name
+            kwargs[name] = self[name]
+        return schema_cls(**kwargs)
+
 
 # %%
 def rns(

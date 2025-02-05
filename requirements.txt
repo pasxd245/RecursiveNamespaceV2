@@ -1,0 +1,9 @@
+# Dev
+ruff>=0.8.1
+flit==3.10.1
+versioneer[toml]
+codespell>=2.4.1
+
+# Test
+pytest>=6.0
+coverage==7.6.10

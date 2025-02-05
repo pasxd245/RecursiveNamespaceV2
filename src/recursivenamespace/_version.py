@@ -51,7 +51,7 @@ def get_config() -> VersioneerConfig:
     cfg.VCS = "git"
     cfg.style = "pep440"
     cfg.tag_prefix = "v"
-    cfg.parentdir_prefix = ""
+    cfg.parentdir_prefix = "recursivenamespacev2-"
     cfg.versionfile_source = "src/recursivenamespace/_version.py"
     cfg.verbose = False
     return cfg

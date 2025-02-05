@@ -4,16 +4,17 @@
 **RecursiveNamespace** is an extension of Python's **SimpleNamespace** that provides enhanced functionality for working with nested namespaces and dictionaries. This package allows easy access and manipulation of deeply nested data structures in an intuitive and Pythonic way.
 
 ## Installation
-To install **RecursiveNamespace** from PyPI use the following command.
+To install **RecursiveNamespaceV2** from PyPI use the following command.
 ```bash
-pip install RecursiveNamespace
+pip install RecursiveNamespaceV2
 ```
 
 If you want to use the github clone, use the following.
 ```bash
-git clone https://github.com/HessamLa/RecursiveNamespace.git
-cd RecursiveNamespace
-pip install .
+git clone https://github.com/pasxd245/RecursiveNamespaceV2.git
+cd RecursiveNamespaceV2
+python -m venv .venv  # to setup a virtual env.
+pip install -r .\requirements.txt
 ```
 
 # Usage
@@ -25,7 +26,7 @@ One of the best use cases of this module is converting `dict` into a recursive n
 Another usage is to convert a dictionary to a recursive namespace.
 
 ```python
-from recursivenamespace import rns # or RecursiveNamespace
+from recursivenamespace import RNS # or RecursiveNamespace
 
 data = {
     'name': 'John',
@@ -37,7 +38,7 @@ data = {
     'friends': ['Jane', 'Tom']
 }
 
-rn = rns(data)
+rn = RNS(data)
 print(type(rn)) # <class 'recursivenamespace.main.recursivenamespace'>
 print(rn)       # RNS(name=John, age=30, address=RNS(street=123 Main St, city=Anytown))
 print(rn.name)  # John
@@ -61,7 +62,7 @@ print(rn.friends[1] is rn['friends'][1]) # True
 You can also use it with YAML. 
 ```python
 import yaml
-from recursivenamespace import rns
+from recursivenamespace import RNS
 datatext = """
 name: John
 age: 30
@@ -73,7 +74,7 @@ friends:
     - Tom
 """
 data = yaml.safe_load(datatext)
-rn = rns(data) 
+rn = RNS(data) 
 print(rn) # RNS(name=John, age=30, address=RNS(street=123 Main St, city=Anytown))
 
 # convert back to YAML
@@ -82,8 +83,8 @@ data_yaml = yaml.dump(rn.to_dict())
 
 Let's see other use cases. You can make a nested rns.
 ```python
-from recursivenamespace import rns
-results = rns(
+from recursivenamespace import RNS
+results = RNS(
     params=rns(
         alpha=1.0,
         beta=2.0,
@@ -141,7 +142,9 @@ print(results.params['some-key'] is results.params['some_key']) # True
 # Testing
 To run tests, navigate to the project's root directory and execute:
 ```bash
-python -m unittest discover tests
+pytest -s
+# or with coverage:
+coverage run -m pytest
 ```
 
 The `test_recursive_namespace.py` file contains tests for the **RecursiveNamespace** class.

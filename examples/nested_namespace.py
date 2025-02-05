@@ -2,12 +2,9 @@ from recursivenamespace import recursivenamespace
 
 # Creating a nested recursive namespace
 data = {
-    'employee': {
-        'name': 'Jane Smith',
-        'details': {
-            'position': 'Developer',
-            'department': 'IT'
-        }
+    "employee": {
+        "name": "Jane Smith",
+        "details": {"position": "Developer", "department": "IT"},
     }
 }
 

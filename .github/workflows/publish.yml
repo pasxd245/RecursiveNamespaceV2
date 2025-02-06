@@ -29,8 +29,8 @@ jobs:
       - name: Build release distributions
         run: |
           # NOTE: put your own distribution build steps here.
-          python -m pip install flit
-          python -m flit build
+          python -m pip install pdm pdm-backend versioneer[toml]
+          python -m pdm build
 
       - name: Upload distributions
         uses: actions/upload-artifact@v4

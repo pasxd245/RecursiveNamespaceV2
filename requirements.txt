@@ -1,6 +1,7 @@
 # Dev
 ruff>=0.8.1
-flit==3.10.1
+pdm==2.22.3
+pdm-backend==2.4.3
 versioneer[toml]
 codespell>=2.4.1
 

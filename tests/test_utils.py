@@ -1,6 +1,7 @@
 from pprint import pprint
 
 from recursivenamespace import utils
+import recursivenamespace
 
 
 data = {
@@ -77,11 +78,12 @@ def test_flatten_as_list_3():
     assert out[23][1] == 4
 
 
-def main():
-    print("Hello World!")
-    test_flatten_as_list_3()
+# def main():
+#     print("Hello World!")
+#     # test_flatten_as_list_3()
+#     print(recursivenamespace.__version__)
 
 
-if __name__ == "__main__":
-    main()
-    print("..::DONE::..")
+# if __name__ == "__main__":
+#     main()
+#     print("..::DONE::..")

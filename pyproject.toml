@@ -1,7 +1,7 @@
 [build-system]
 # Minimum requirements for the build system to execute.
-requires = ["pdm-backend", "versioneer[toml]"]
-build-backend = "pdm.backend"
+requires = ["setuptools>=64", "versioneer[toml]"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = 'RecursiveNamespaceV2'
@@ -36,14 +36,7 @@ parentdir_prefix = "recursivenamespacev2-"
 versionfile_source = "src/recursivenamespace/_version.py"
 versionfile_build = "recursivenamespace/_version.py"
 
-# [tool.pdm.build]
-# package-dir = "src"
-
-[tool.pdm.version]
-source = "call"
-getter = "versioneer:get_version"
-write_to = "recursivenamespace/_version_pdm.py"
-write_template = "__version__ = '{}'"
+# PDM sections removed - using hatchling + versioneer directly
 
 [tool.ruff]
 line-length = 80
@@ -84,3 +77,23 @@ directory = "coverage_html_report"
 [tool.codespell]
 ignore-words-list = "rns"
 ignore-regex = 'https://([\w/\.])+'
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+strict_equality = true
+strict = true
+
+[[tool.mypy.overrides]]
+module = "recursivenamespace._version"
+ignore_errors = true

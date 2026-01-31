@@ -29,8 +29,8 @@ jobs:
       - name: Build release distributions
         run: |
           # NOTE: put your own distribution build steps here.
-          python -m pip install pdm pdm-backend versioneer[toml]
-          python -m pdm build
+          python -m pip install uv setuptools versioneer[toml]
+          uv build
 
       - name: Upload distributions
         uses: actions/upload-artifact@v4

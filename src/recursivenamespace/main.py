@@ -1,16 +1,20 @@
 #############################
 # Fork: https://github.com/HessamLa/recursivenamespace
 # %%
+from __future__ import annotations
+
 import dataclasses
 import logging
 import re
 import sys
-from typing import Any, List
+from typing import Any, Dict, Iterator, List, Optional, TypeVar, Union, Callable
 from copy import deepcopy
 from types import SimpleNamespace
 import functools
 
 from . import utils
+
+T = TypeVar('T')
 
 
 __all__ = ["recursivenamespace"]
@@ -35,8 +39,17 @@ class recursivenamespace(SimpleNamespace):
     __logger = logging.getLogger(__name__)
 
     def __init__(
-        self, data={}, accepted_iter_types=[], use_raw_key=False, **kwargs
-    ):
+        self,
+        data: Optional[Dict[str, Any]] = None,
+        accepted_iter_types: Optional[List[type]] = None,
+        use_raw_key: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        if data is None:
+            data = {}
+        if accepted_iter_types is None:
+            accepted_iter_types = []
+
         self.__key_ = ""
         self.__use_raw_key_ = use_raw_key
         self.__supported_types_ = list(
@@ -61,7 +74,12 @@ class recursivenamespace(SimpleNamespace):
             # setattr(self, key, val)
             self[key] = val
 
-    def __process(self, val, accepted_iter_types=[], use_raw_key=False):
+    def __process(
+        self,
+        val: Any,
+        accepted_iter_types: Optional[List[type]] = None,
+        use_raw_key: bool = False,
+    ) -> Any:
         if isinstance(val, dict):
             return recursivenamespace(val, accepted_iter_types, use_raw_key)
         elif isinstance(val, str):
@@ -84,16 +102,16 @@ class recursivenamespace(SimpleNamespace):
         else:
             return val
 
-    def __re(self, key):
+    def __re(self, key: str) -> str:
         return key if self.__use_raw_key_ else re.sub(r"[.\-\s]", "_", key)
 
-    def set_key(self, key):
+    def set_key(self, key: str) -> None:
         self.__key_ = self.__re(key)
 
-    def get_key(self):
+    def get_key(self) -> str:
         return self.__key_
 
-    def update(self, data):
+    def update(self, data: Union[Dict[str, Any], 'recursivenamespace']) -> None:
         try:
             if not isinstance(data, recursivenamespace):
                 data = recursivenamespace(
@@ -104,12 +122,12 @@ class recursivenamespace(SimpleNamespace):
         for key, val in data.items():
             self[key] = val
 
-    def __remove_protected_key(self, key):
+    def __remove_protected_key(self, key: str) -> None:
         """Use with be-careful!"""
         self.__protected_keys_.remove(key)
         self.__dict__.pop(key)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, recursivenamespace):
             return vars(self) == vars(other)
         elif isinstance(other, dict):
@@ -128,42 +146,42 @@ class recursivenamespace(SimpleNamespace):
     def __str__(self) -> str:
         return self.__repr__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__dict__) - len(self.__protected_keys_)
 
-    def __delattr__(self, key):
+    def __delattr__(self, key: str) -> None:
         key = self.__re(key)
         if key not in self.__protected_keys_:
             # delattr(self, key)
             del self.__dict__[key]
 
-    def __setitem__(self, key: str, value: Any):
+    def __setitem__(self, key: str, value: Any) -> None:
         key = self.__re(key)
         if key in self.__protected_keys_:
             raise KeyError(f"The key '{key}' is protected.")
         setattr(self, key, value)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         key = self.__re(key)
         if key in self.__protected_keys_:
             raise KeyError(f"The key '{key}' is protected.")
         return getattr(self, key)
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         key = self.__re(key)
         delattr(self, key)
 
-    def __contains__(self, key):
+    def __contains__(self, key: str) -> bool:
         key = self.__re(key)
         return key in self.__dict__
 
-    def __copy__(self):
+    def __copy__(self) -> 'recursivenamespace':
         cls = self.__class__
         result = cls.__new__(cls)
         result.__dict__.update(self.__dict__)
         return result
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: Dict[int, Any]) -> 'recursivenamespace':
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -171,13 +189,14 @@ class recursivenamespace(SimpleNamespace):
             setattr(result, k, deepcopy(v, memo))
         return result
 
-    def copy(self):
+    def copy(self) -> 'recursivenamespace':
         return self.__copy__()
 
-    def deepcopy(self):
-        return self.__deepcopy__()
+    def deepcopy(self) -> 'recursivenamespace':
+        memo: Dict[int, Any] = {}
+        return self.__deepcopy__(memo)
 
-    def pop(self, key, default=None):
+    def pop(self, key: str, default: Optional[T] = None) -> Union[Any, T]:
         key = self.__re(key)
         if key in self.__protected_keys_:
             raise KeyError(f"The key '{key}' is protected.")
@@ -188,31 +207,31 @@ class recursivenamespace(SimpleNamespace):
         else:
             return default
 
-    def items(self):
+    def items(self) -> List[tuple[str, Any]]:
         return [
             (k, v)
             for k, v in self.__dict__.items()
             if k not in self.__protected_keys_
         ]
 
-    def keys(self):
+    def keys(self) -> List[str]:
         return [
             k for k in self.__dict__.keys() if k not in self.__protected_keys_
         ]
 
-    def values(self):
+    def values(self) -> List[Any]:
         return [
             v
             for k, v in self.__dict__.items()
             if k not in self.__protected_keys_
         ]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         if sys._getframe(1).f_code.co_name == "dict":
-            return self.to_dict()
+            return iter(self.to_dict())
         return iter(self.keys())
 
-    def to_dict(self, flatten_sep: str = False):
+    def to_dict(self, flatten_sep: Union[str, bool] = False) -> Dict[str, Any]:
         """Convert the recursivenamespace object to a dictionary.
         If flatten_sep is not False, then the keys are flattened using the separator.
         """
@@ -231,7 +250,7 @@ class recursivenamespace(SimpleNamespace):
             d = dict(utils.flatten_as_dict(d, sep=flatten_sep))
         return d
 
-    def __iter_to_dict(self, iterable=None):
+    def __iter_to_dict(self, iterable: Any) -> Any:
         elements = []
         for val in iterable:
             if isinstance(val, recursivenamespace):
@@ -247,7 +266,7 @@ class recursivenamespace(SimpleNamespace):
                 elements.append(val)
         return type(iterable)(elements)
 
-    def __chain_set_array(self, key, subs: List[str], value: any):
+    def __chain_set_array(self, key: str, subs: List[str], value: Any) -> None:
         # if the `key` not existed, then create it ??
         if not hasattr(self, key):
             self[key] = []
@@ -295,7 +314,7 @@ class recursivenamespace(SimpleNamespace):
                 else:
                     raise SetChainKeyError(target, f"{key}[{index}]", sub_key)
 
-    def __chain_set_value(self, key, subs: List[str], value: any):
+    def __chain_set_value(self, key: str, subs: List[str], value: Any) -> None:
         # if the `key` not existed, then create it ??
         if not hasattr(self, key):
             self[key] = recursivenamespace(
@@ -347,7 +366,7 @@ class recursivenamespace(SimpleNamespace):
         else:  # SET the value
             self.__chain_set_value(key, subs, value)
 
-    def __chain_get_array(self, key, subs: List[str]):
+    def __chain_get_array(self, key: str, subs: List[str]) -> Any:
         target = self[key]
         subs_len = len(subs)
         # validate:
@@ -379,7 +398,7 @@ class recursivenamespace(SimpleNamespace):
         else:
             raise GetChainKeyError(target, key, sub_key)
 
-    def __chain_get_value(self, key, subs: List[str]):
+    def __chain_get_value(self, key: str, subs: List[str]) -> Any:
         target = self[key]
         sub_key = utils.join_key(subs)
         if isinstance(target, recursivenamespace):
@@ -424,7 +443,9 @@ class recursivenamespace(SimpleNamespace):
         # @else: GET the value
         return self.__chain_get_value(key, subs)
 
-    def get_or_else(self, key: str, or_else=None, show_log=False):
+    def get_or_else(
+        self, key: str, or_else: Optional[T] = None, show_log: bool = False
+    ) -> Union[Any, T]:
         """Get the value by key.
         Supported "chain-key", e.g.: a.b.c
 
@@ -442,7 +463,7 @@ class recursivenamespace(SimpleNamespace):
                 self.__logger.warning(f"KeyNotFound - {key}", exc_info=1)
             return or_else
 
-    def as_schema(self, schema_cls, /, **kwargs):
+    def as_schema(self, schema_cls: type[T], /, **kwargs: Any) -> T:
         if not dataclasses.is_dataclass(schema_cls):
             raise TypeError(f"The 'schema_cls' must be a DataClass type.")
         # @else:
@@ -455,16 +476,20 @@ class recursivenamespace(SimpleNamespace):
 
 # %%
 def rns(
-    accepted_iter_types=[],
-    use_raw_key=False,
-    use_chain_key=False,
-    props="props",
-):
+    accepted_iter_types: Optional[List[type]] = None,
+    use_raw_key: bool = False,
+    use_chain_key: bool = False,
+    props: str = "props",
+) -> Callable[[Callable[..., Any]], Callable[..., recursivenamespace]]:
     """Create RNS object"""
+    if accepted_iter_types is None:
+        accepted_iter_types_list: List[type] = []
+    else:
+        accepted_iter_types_list = accepted_iter_types
 
-    def fn_wrapper(func):
+    def fn_wrapper(func: Callable[..., Any]) -> Callable[..., recursivenamespace]:
         @functools.wraps(func)
-        def create_rns(*args, **kwargs):
+        def create_rns(*args: Any, **kwargs: Any) -> recursivenamespace:
             # Do something before:
             ret_val = func(*args, **kwargs)
 
@@ -485,14 +510,14 @@ def rns(
 
             # Do something after:
             if use_chain_key:
-                ret = recursivenamespace(None, accepted_iter_types, use_raw_key)
+                ret = recursivenamespace(None, accepted_iter_types_list, use_raw_key)
                 items = data.items() if isinstance(data, dict) else data
                 for key, value in items:
                     ret.val_set(key, value)
                 return ret
             else:
                 return recursivenamespace(
-                    data, accepted_iter_types, use_raw_key
+                    data, accepted_iter_types_list, use_raw_key
                 )
 
         return create_rns

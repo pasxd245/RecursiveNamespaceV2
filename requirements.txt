@@ -1,10 +1,16 @@
 # Dev
 ruff>=0.8.1
-pdm==2.22.3
-pdm-backend==2.4.3
+setuptools>=64
 versioneer[toml]
 codespell>=2.4.1
+pre-commit>=3.5.0
+mypy>=1.8.0
+types-all
 
 # Test
 pytest>=6.0
 coverage==7.6.10
+
+# Documentation
+sphinx>=7.2.0
+sphinx-rtd-theme>=2.0.0

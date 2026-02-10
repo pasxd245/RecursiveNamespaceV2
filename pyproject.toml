@@ -51,6 +51,7 @@ junit_family = "xunit2"
 
 [tool.coverage.run]
 branch = true
+omit = ["src/recursivenamespace/_version.py"]
 
 [tool.coverage.report]
 ignore_errors = false

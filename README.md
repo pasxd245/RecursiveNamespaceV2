@@ -163,6 +163,72 @@ print(results.params['some-key'] is results.params.some_key)    # True
 print(results.params['some-key'] is results.params['some_key']) # True
 ```
 
+### JSON / TOML Serialization
+
+Convert to and from JSON strings or files:
+
+```python
+from recursivenamespace import RNS
+
+config = RNS({"app": {"name": "MyApp"}, "port": 8080})
+
+# To JSON string
+json_str = config.to_json(indent=2)
+
+# From JSON string
+loaded = RNS.from_json(json_str)
+assert loaded.app.name == "MyApp"
+
+# File I/O
+config.save_json("config.json")
+loaded = RNS.load_json("config.json")
+```
+
+TOML works the same way (Python 3.11+ or `pip install tomli`):
+
+```python
+toml_str = config.to_toml()
+config.save_toml("config.toml")
+loaded = RNS.load_toml("config.toml")
+```
+
+### Context Managers
+
+Temporarily modify a namespace without affecting the original:
+
+```python
+config = RNS({"debug": False, "port": 8000})
+
+# overlay: applies overrides, restores on exit
+with config.overlay({"debug": True}):
+    assert config.debug is True
+assert config.debug is False
+
+# temporary: yields a deep copy
+with config.temporary() as tmp:
+    tmp.port = 9999
+assert config.port == 8000
+```
+
+### Chain-Key Access
+
+Set and get deeply nested values with dot notation:
+
+```python
+ns = RNS({})
+ns.val_set("server.host", "localhost")
+ns.val_set("users[].#", "Alice")   # append to array
+ns.val_set("users[].#", "Bob")
+
+print(ns.val_get("server.host"))    # localhost
+print(ns.val_get("users[].0"))      # Alice
+print(ns.get_or_else("missing", "N/A"))  # N/A
+```
+
+## Examples
+
+See the [examples/](examples/) directory for 15 runnable examples organized by difficulty (basic, intermediate, advanced, real-world).
+
 ## Testing
 
 To run tests, navigate to the project's root directory and execute:
@@ -173,14 +239,10 @@ pytest -s
 coverage run -m pytest
 ```
 
-The `test_recursive_namespace.py` file contains tests for the **RecursiveNamespace** class.
-
 ## Contributing
 
-Contributions to the **RecursiveNamespace** project are welcome! Please ensure that any pull requests include tests covering new features or fixes.
+Contributions to the **RecursiveNamespace** project are welcome! Please ensure that any pull requests include tests covering new features or fixes. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 
 This project is licensed under the MIT License - see the `LICENSE` file for details.
-
-You should copy the actual content from examlpes scripts (founde under `./examples/` directory) and paste it into the respective sections of the README. This provides users with immediate examples of how to use your package. The Testing section explains how to run the unit tests, encouraging users to check that everything is working correctly.

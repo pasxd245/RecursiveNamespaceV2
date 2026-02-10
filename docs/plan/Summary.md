@@ -110,7 +110,7 @@ rn.nested.new_field = 'also works'  # Creates nested namespace automatically
 
 ### Project Structure
 
-```
+```text
 RecursiveNamespaceV2/
 ├── src/
 │   └── recursivenamespace/

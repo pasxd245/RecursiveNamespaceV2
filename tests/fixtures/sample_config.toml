@@ -1,0 +1,18 @@
+[app]
+name = "MyApp"
+version = "1.0.0"
+debug = false
+max_connections = 100
+
+[database]
+host = "localhost"
+port = 5432
+
+[database.credentials]
+username = "admin"
+password = "secret123"
+
+[settings]
+timeout = 30
+retries = 3
+cache_enabled = true

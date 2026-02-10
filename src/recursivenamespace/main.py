@@ -3,19 +3,42 @@
 # %%
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import json
 import logging
 import re
 import sys
-from typing import Any, Dict, Iterator, List, Optional, TypeVar, Union, Callable
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterator,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+)
 from copy import deepcopy
 from types import SimpleNamespace
+from pathlib import Path
 import functools
+
+# Conditional import for TOML support
+try:
+    import tomllib  # Python 3.11+
+except ImportError:
+    try:
+        import tomli as tomllib  # Python 3.8-3.10 fallback
+    except ImportError:
+        tomllib = None  # type: ignore
 
 from . import utils
 
-T = TypeVar('T')
+T = TypeVar("T")
 
+_KEY_NORMALIZE_RE = re.compile(r"[.\-\s]")
 
 __all__ = ["recursivenamespace"]
 
@@ -32,6 +55,12 @@ class GetChainKeyError(KeyError):
         super().__init__(
             f"The object '{key}' typeof({type(obj)}) does not support get[] operator on chain-key '{sub_key}'."
         )
+
+
+class SerializationError(Exception):
+    """Raised when serialization or deserialization fails."""
+
+    pass
 
 
 class recursivenamespace(SimpleNamespace):
@@ -103,7 +132,7 @@ class recursivenamespace(SimpleNamespace):
             return val
 
     def __re(self, key: str) -> str:
-        return key if self.__use_raw_key_ else re.sub(r"[.\-\s]", "_", key)
+        return key if self.__use_raw_key_ else _KEY_NORMALIZE_RE.sub("_", key)
 
     def set_key(self, key: str) -> None:
         self.__key_ = self.__re(key)
@@ -111,13 +140,13 @@ class recursivenamespace(SimpleNamespace):
     def get_key(self) -> str:
         return self.__key_
 
-    def update(self, data: Union[Dict[str, Any], 'recursivenamespace']) -> None:
+    def update(self, data: Union[Dict[str, Any], "recursivenamespace"]) -> None:
         try:
             if not isinstance(data, recursivenamespace):
                 data = recursivenamespace(
                     data, self.__supported_types_, self.__use_raw_key_
                 )
-        except:
+        except Exception:
             raise Exception(f"Failed to update with data of type {type(data)}")
         for key, val in data.items():
             self[key] = val
@@ -175,13 +204,13 @@ class recursivenamespace(SimpleNamespace):
         key = self.__re(key)
         return key in self.__dict__
 
-    def __copy__(self) -> 'recursivenamespace':
+    def __copy__(self) -> "recursivenamespace":
         cls = self.__class__
         result = cls.__new__(cls)
         result.__dict__.update(self.__dict__)
         return result
 
-    def __deepcopy__(self, memo: Dict[int, Any]) -> 'recursivenamespace':
+    def __deepcopy__(self, memo: Dict[int, Any]) -> "recursivenamespace":
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -189,10 +218,10 @@ class recursivenamespace(SimpleNamespace):
             setattr(result, k, deepcopy(v, memo))
         return result
 
-    def copy(self) -> 'recursivenamespace':
+    def copy(self) -> "recursivenamespace":
         return self.__copy__()
 
-    def deepcopy(self) -> 'recursivenamespace':
+    def deepcopy(self) -> "recursivenamespace":
         memo: Dict[int, Any] = {}
         return self.__deepcopy__(memo)
 
@@ -457,7 +486,7 @@ class recursivenamespace(SimpleNamespace):
         """
         try:
             return self.val_get(key)
-        except:
+        except Exception:
             # skip the error.
             if show_log:
                 self.__logger.warning(f"KeyNotFound - {key}", exc_info=1)
@@ -465,13 +494,355 @@ class recursivenamespace(SimpleNamespace):
 
     def as_schema(self, schema_cls: type[T], /, **kwargs: Any) -> T:
         if not dataclasses.is_dataclass(schema_cls):
-            raise TypeError(f"The 'schema_cls' must be a DataClass type.")
+            raise TypeError("The 'schema_cls' must be a DataClass type.")
         # @else:
         fields = dataclasses.fields(schema_cls)
         for field in fields:
             name = field.name
             kwargs[name] = self[name]
         return schema_cls(**kwargs)
+
+    # Context Managers
+
+    @contextlib.contextmanager
+    def temporary(
+        self,
+    ) -> Generator["recursivenamespace", None, None]:
+        """Yield a deep copy; the original is untouched.
+
+        Example::
+
+            with config.temporary() as tmp:
+                tmp.debug = True   # modify freely
+            assert config.debug is False  # original unchanged
+        """
+        yield self.deepcopy()
+
+    @contextlib.contextmanager
+    def overlay(
+        self, overrides: Dict[str, Any]
+    ) -> Generator["recursivenamespace", None, None]:
+        """Temporarily apply *overrides*, restore on exit.
+
+        Example::
+
+            with config.overlay({"debug": True}):
+                assert config.debug is True
+            assert config.debug is False
+        """
+        originals: Dict[str, Any] = {}
+        added_keys: List[str] = []
+
+        for key, value in overrides.items():
+            nk = self.__re(key)
+            if nk in self.__dict__ and nk not in self.__protected_keys_:
+                originals[nk] = self.__dict__[nk]
+            else:
+                added_keys.append(nk)
+            self[key] = value
+
+        try:
+            yield self
+        finally:
+            for k, v in originals.items():
+                self.__dict__[k] = v
+            for k in added_keys:
+                self.__dict__.pop(k, None)
+
+    # JSON Serialization Methods
+
+    def to_json(
+        self,
+        indent: Optional[int] = 2,
+        sort_keys: bool = False,
+        ensure_ascii: bool = True,
+        **kwargs: Any,
+    ) -> str:
+        """Convert recursivenamespace to JSON string.
+
+        Args:
+            indent: Number of spaces for indentation (None for compact)
+            sort_keys: Sort keys alphabetically
+            ensure_ascii: Escape non-ASCII characters
+            **kwargs: Additional arguments passed to json.dumps()
+
+        Returns:
+            str: JSON string representation
+
+        Raises:
+            SerializationError: If serialization fails
+        """
+        try:
+            return json.dumps(
+                self.to_dict(),
+                indent=indent,
+                sort_keys=sort_keys,
+                ensure_ascii=ensure_ascii,
+                **kwargs,
+            )
+        except (TypeError, ValueError) as e:
+            raise SerializationError(f"Failed to serialize to JSON: {e}")
+
+    @classmethod
+    def from_json(
+        cls,
+        json_str: str,
+        accepted_iter_types: Optional[List[type]] = None,
+        use_raw_key: bool = False,
+    ) -> "recursivenamespace":
+        """Create recursivenamespace from JSON string.
+
+        Args:
+            json_str: JSON string to parse
+            accepted_iter_types: Custom iterable types to preserve
+            use_raw_key: Disable key normalization
+
+        Returns:
+            recursivenamespace: New namespace instance
+
+        Raises:
+            SerializationError: If deserialization fails
+        """
+        try:
+            data = json.loads(json_str)
+            if not isinstance(data, dict):
+                raise SerializationError(
+                    f"JSON must represent a dict, got {type(data)}"
+                )
+            return cls(data, accepted_iter_types, use_raw_key)
+        except json.JSONDecodeError as e:
+            raise SerializationError(f"Invalid JSON: {e}")
+        except Exception as e:
+            raise SerializationError(f"Failed to parse JSON: {e}")
+
+    def save_json(
+        self,
+        filepath: Union[str, Path],
+        indent: Optional[int] = 2,
+        **kwargs: Any,
+    ) -> None:
+        """Save recursivenamespace to JSON file.
+
+        Args:
+            filepath: Path to output file
+            indent: Number of spaces for indentation
+            **kwargs: Additional arguments passed to to_json()
+
+        Raises:
+            SerializationError: If save fails
+            IOError: If file cannot be written
+        """
+        try:
+            filepath = Path(filepath)
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(self.to_json(indent=indent, **kwargs))
+        except Exception as e:
+            raise SerializationError(f"Failed to save JSON file: {e}")
+
+    @classmethod
+    def load_json(
+        cls,
+        filepath: Union[str, Path],
+        accepted_iter_types: Optional[List[type]] = None,
+        use_raw_key: bool = False,
+    ) -> "recursivenamespace":
+        """Load recursivenamespace from JSON file.
+
+        Args:
+            filepath: Path to JSON file
+            accepted_iter_types: Custom iterable types to preserve
+            use_raw_key: Disable key normalization
+
+        Returns:
+            recursivenamespace: New namespace instance
+
+        Raises:
+            SerializationError: If load fails
+            FileNotFoundError: If file doesn't exist
+        """
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                return cls.from_json(f.read(), accepted_iter_types, use_raw_key)
+        except FileNotFoundError:
+            raise
+        except Exception as e:
+            raise SerializationError(f"Failed to load JSON file: {e}")
+
+    # TOML Serialization Methods
+
+    @staticmethod
+    def _dict_to_toml(data: Dict[str, Any], prefix: str = "") -> str:
+        """Convert dict to TOML format.
+
+        Supports basic types: str, int, float, bool, list, dict.
+        Does NOT support: datetime, inline tables, complex nesting in arrays.
+        """
+        lines = []
+        simple_values = []
+        tables = []
+
+        for key, value in data.items():
+            full_key = f"{prefix}.{key}" if prefix else key
+
+            if isinstance(value, dict):
+                tables.append((full_key, value))
+            elif isinstance(value, (str, int, float, bool, type(None))):
+                if isinstance(value, str):
+                    # Escape special characters in strings
+                    value = value.replace("\\", "\\\\").replace('"', '\\"')
+                    simple_values.append(f'{key} = "{value}"')
+                elif isinstance(value, bool):
+                    simple_values.append(f"{key} = {str(value).lower()}")
+                elif value is None:
+                    # TOML doesn't have null, skip
+                    continue
+                else:
+                    simple_values.append(f"{key} = {value}")
+            elif isinstance(value, (list, tuple)):
+                # Simple array handling (only primitive types)
+                if all(isinstance(v, (str, int, float, bool)) for v in value):
+                    array_str = "["
+                    for v in value:
+                        if isinstance(v, str):
+                            v = v.replace("\\", "\\\\").replace('"', '\\"')
+                            array_str += f'"{v}", '
+                        elif isinstance(v, bool):
+                            array_str += f"{str(v).lower()}, "
+                        else:
+                            array_str += f"{v}, "
+                    if len(value) > 0:
+                        array_str = array_str[:-2]  # Remove last comma
+                    array_str += "]"
+                    simple_values.append(f"{key} = {array_str}")
+                else:
+                    # Complex arrays not fully supported
+                    simple_values.append(
+                        f"# {key} = [complex array - not serialized]"
+                    )
+            else:
+                simple_values.append(
+                    f"# {key} = [type {type(value).__name__} not supported]"
+                )
+
+        # Write simple values first
+        if simple_values:
+            lines.extend(simple_values)
+
+        # Write tables
+        for table_key, table_value in tables:
+            lines.append("")  # Empty line before table
+            lines.append(f"[{table_key}]")
+            table_content = recursivenamespace._dict_to_toml(table_value, "")
+            lines.append(table_content)
+
+        return "\n".join(lines)
+
+    def to_toml(self) -> str:
+        """Convert recursivenamespace to TOML string.
+
+        Note: This is a minimal TOML writer supporting basic config types.
+        Limitations:
+        - No datetime support
+        - Limited array nesting
+        - No inline tables
+
+        Returns:
+            str: TOML string representation
+
+        Raises:
+            SerializationError: If serialization fails
+        """
+        try:
+            return self._dict_to_toml(self.to_dict())
+        except Exception as e:
+            raise SerializationError(f"Failed to serialize to TOML: {e}")
+
+    @classmethod
+    def from_toml(
+        cls,
+        toml_str: str,
+        accepted_iter_types: Optional[List[type]] = None,
+        use_raw_key: bool = False,
+    ) -> "recursivenamespace":
+        """Create recursivenamespace from TOML string.
+
+        Args:
+            toml_str: TOML string to parse
+            accepted_iter_types: Custom iterable types to preserve
+            use_raw_key: Disable key normalization
+
+        Returns:
+            recursivenamespace: New namespace instance
+
+        Raises:
+            SerializationError: If deserialization fails
+            ImportError: If tomllib not available
+        """
+        if tomllib is None:
+            raise ImportError(
+                "TOML support requires Python 3.11+ or 'tomli' package. "
+                "Install with: pip install tomli"
+            )
+        try:
+            data = tomllib.loads(toml_str)
+            return cls(data, accepted_iter_types, use_raw_key)
+        except Exception as e:
+            raise SerializationError(f"Failed to parse TOML: {e}")
+
+    def save_toml(self, filepath: Union[str, Path]) -> None:
+        """Save recursivenamespace to TOML file.
+
+        Args:
+            filepath: Path to output file
+
+        Raises:
+            SerializationError: If save fails
+            IOError: If file cannot be written
+        """
+        try:
+            filepath = Path(filepath)
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(self.to_toml())
+        except Exception as e:
+            raise SerializationError(f"Failed to save TOML file: {e}")
+
+    @classmethod
+    def load_toml(
+        cls,
+        filepath: Union[str, Path],
+        accepted_iter_types: Optional[List[type]] = None,
+        use_raw_key: bool = False,
+    ) -> "recursivenamespace":
+        """Load recursivenamespace from TOML file.
+
+        Args:
+            filepath: Path to TOML file
+            accepted_iter_types: Custom iterable types to preserve
+            use_raw_key: Disable key normalization
+
+        Returns:
+            recursivenamespace: New namespace instance
+
+        Raises:
+            SerializationError: If load fails
+            FileNotFoundError: If file doesn't exist
+            ImportError: If tomllib not available
+        """
+        if tomllib is None:
+            raise ImportError(
+                "TOML support requires Python 3.11+ or 'tomli' package. "
+                "Install with: pip install tomli"
+            )
+        try:
+            with open(filepath, "rb") as f:  # TOML requires binary mode
+                data = tomllib.load(f)
+                return cls(data, accepted_iter_types, use_raw_key)
+        except FileNotFoundError:
+            raise
+        except Exception as e:
+            raise SerializationError(f"Failed to load TOML file: {e}")
 
 
 # %%
@@ -487,7 +858,9 @@ def rns(
     else:
         accepted_iter_types_list = accepted_iter_types
 
-    def fn_wrapper(func: Callable[..., Any]) -> Callable[..., recursivenamespace]:
+    def fn_wrapper(
+        func: Callable[..., Any],
+    ) -> Callable[..., recursivenamespace]:
         @functools.wraps(func)
         def create_rns(*args: Any, **kwargs: Any) -> recursivenamespace:
             # Do something before:
@@ -510,7 +883,9 @@ def rns(
 
             # Do something after:
             if use_chain_key:
-                ret = recursivenamespace(None, accepted_iter_types_list, use_raw_key)
+                ret = recursivenamespace(
+                    None, accepted_iter_types_list, use_raw_key
+                )
                 items = data.items() if isinstance(data, dict) else data
                 for key, value in items:
                     ret.val_set(key, value)

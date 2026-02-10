@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from enum import Enum
+from functools import lru_cache
 import re
-from typing import Any, Dict, List, NamedTuple, Union
+from typing import Any, Dict, List, NamedTuple
 
 
 KEY_SEP_CHAR = "."
@@ -22,11 +23,14 @@ def unescape_key(key: str, sep: str | None = None) -> str:
     return key.replace(escape_char, sep)
 
 
+@lru_cache(maxsize=8)
+def _compile_split_pattern(sep: str) -> re.Pattern[str]:
+    return re.compile(rf"(?<!\\)\{sep}")
+
+
 def split_key(key: str, sep: str | None = None) -> list[str]:
     sep = sep or KEY_SEP_CHAR
-    s = rf"(?<!\\)\{sep}"
-    p = re.compile(s)
-    return re.split(p, key)
+    return _compile_split_pattern(sep).split(key)
 
 
 def join_key(parts: List[str], sep: str | None = None) -> str:

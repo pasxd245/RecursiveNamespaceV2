@@ -1,7 +1,6 @@
 from pprint import pprint
 
 from recursivenamespace import utils
-import recursivenamespace
 
 
 data = {

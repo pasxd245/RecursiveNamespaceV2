@@ -1,10 +1,11 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
-## [Unreleased]
+## [0.0.3] - 2026-02-14
 
 ### Build
 
+- Migrate to hatchling and consolidate documentation([176f6a7](https://github.com/pasxd245/RecursiveNamespaceV2/commit/176f6a7ca6abdafc6615ba7d84bb2b1b16f45e64))
 - Migrate from PDM to uv + complete PDCA Cycle 1([7470e4a](https://github.com/pasxd245/RecursiveNamespaceV2/commit/7470e4a0e7e3e1926aae18b35a0c3c3026bfd1e4))
 
 ### Documentation
@@ -14,6 +15,19 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - Complete serialization, context managers, performance, tests & examples([2ab0955](https://github.com/pasxd245/RecursiveNamespaceV2/commit/2ab0955651c13e56e4e235b7bf28b066db21185c))
+
+### Other
+
+- Merge pull request #6 from pasxd245/dev
+
+Dev([8071fbd](https://github.com/pasxd245/RecursiveNamespaceV2/commit/8071fbda80737f3e612beb12c079a3200bdb5e86))
+- Merge pull request #5 from pasxd245/infra/migrate-to-uv
+
+Infra/migrate to uv([9a54bd0](https://github.com/pasxd245/RecursiveNamespaceV2/commit/9a54bd0e5c1a398fe2b6ad932474ed7c56ac70e8))
+
+### Refactoring
+
+- Extract errors module, fix bugs, enforce mypy strict (PDCA Cycle 3)([e7adf18](https://github.com/pasxd245/RecursiveNamespaceV2/commit/e7adf189f5b334085a56e1580e2b4a31ae401d54))
 ## [0.0.2] - 2025-02-06
 
 ### Bug Fixes
@@ -49,7 +63,7 @@ Feat: The first enhance-version([0673012](https://github.com/pasxd245/RecursiveN
 - Minor update([d7dc0fc](https://github.com/pasxd245/RecursiveNamespaceV2/commit/d7dc0fc5b12f8e957fea89cb9d2e7cd1faf60d96))
 - This is renamed([c029912](https://github.com/pasxd245/RecursiveNamespaceV2/commit/c029912d2f40a7ad6dfeec4ee4bdad1c1177659c))
 - Final touch([0005e18](https://github.com/pasxd245/RecursiveNamespaceV2/commit/0005e18a96fe92237672d7ac0d652eef76bb22b1))
-- Examples updated([1a27b07](https://github.com/pasxd245/RecursiveNamespaceV2/commit/1a27b0775e11ecf9585be5dc49d308087601428d))
+- Exapmles updated([1a27b07](https://github.com/pasxd245/RecursiveNamespaceV2/commit/1a27b0775e11ecf9585be5dc49d308087601428d))
 - Package name updated to avoid Capital letters([3e55188](https://github.com/pasxd245/RecursiveNamespaceV2/commit/3e55188ed652fafe900714da486c55377f04fe89))
 - Structure change([fb642e4](https://github.com/pasxd245/RecursiveNamespaceV2/commit/fb642e4880693d70596dd1934ef90350af843c28))
 - Structure change([0bf341e](https://github.com/pasxd245/RecursiveNamespaceV2/commit/0bf341e8bf5033a63a7edb5f28f1b59b34855b12))

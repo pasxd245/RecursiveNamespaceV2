@@ -32,4 +32,4 @@ repos:
     hooks:
       - id: codespell
         args: [--ignore-words-list=rns]
-        exclude: ^(\.git|\.venv|dist|\.github|out|coverage_html_report)/
+        exclude: ^(\.git|\.venv|dist|\.github|out|coverage_html_report)/|^CHANGELOG\.md$

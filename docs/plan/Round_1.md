@@ -91,11 +91,11 @@ Successfully completed the first cycle of the PDCA continuous improvement plan, 
 
 ### Type System
 
-6. `src/recursivenamespace/py.typed` - PEP 561 type marker
+1. `src/recursivenamespace/py.typed` - PEP 561 type marker
 
 ### Documentation
 
-7. `docs/conf.py` - Sphinx configuration
+1. `docs/conf.py` - Sphinx configuration
 2. `docs/index.rst` - Main documentation
 3. `docs/getting_started.rst` - Getting started guide
 4. `docs/api/recursivenamespace.rst` - API reference

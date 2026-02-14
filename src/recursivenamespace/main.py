@@ -358,25 +358,23 @@ class recursivenamespace(SimpleNamespace):
 
     def val_set(self, key: str, value: Any):
         """Set the value by key.
-        Supported "chain-key", e.g.:
-            - a.b.c <- set value to the item "c"
-            - a.b.c[].<index-i> <- set value to the item at "index-i" of the array "c", same as: c[i] = value
-            - a.b.c[].# <- append value to end of the array "c", same as: c.append(value)
-            - a.b.c[].<index-i>.x[].<index-j> <- set value to the item at "index-j" of the array "x", same as: c[i].x[j] = value
-            - a.b.c[].<index-i>.x[].# <- append value to end of the array "x", same as: c[i].x.append(value)
-            - a.b.c[].#.x[].# <- append value to end of the new-array "x", same as:\n
-                - new_item = RNS(dict(x=[])
-                - new_item.x.append(value)
-                - c.append(new_item)
-            - ...
+
+        Supported "chain-key" patterns:
+
+        - ``a.b.c`` -- set value to the item "c"
+        - ``a.b.c[].<i>`` -- set value at index i of array "c"
+        - ``a.b.c[].#`` -- append value to end of array "c"
+        - ``a.b.c[].<i>.x[].<j>`` -- set value at index j of nested array "x"
+        - ``a.b.c[].<i>.x[].#`` -- append to nested array "x"
+        - ``a.b.c[].#.x[].#`` -- append new item with nested array append
 
         Args:
-            key (str): The key to set
-            value (Any): The value to set
+            key: The key to set.
+            value: The value to set.
 
         Raises:
-            KeyError: when try to set a protected value.
-            SetChainKeyError: Only support chain-key on RNS type, else raise the error.
+            KeyError: When trying to set a protected value.
+            SetChainKeyError: When chain-key target is not an RNS type.
         """
         # raw_key = key
         key, *subs = utils.split_key(key)
@@ -439,22 +437,23 @@ class recursivenamespace(SimpleNamespace):
 
     def val_get(self, key: str):
         """Get the value by key.
-        Supported "chain-key", e.g.:
-            - a.b.c <- get the item "c"
-            - a.b.c[].<index-i> <- get the item at "index-i" of the array "c"
-            - a.b.c[].# <- get the last item of the array "c" (same as: -1)
-            - a.b.c[].<index-i>.x[].<index-j> <- get the item at "index-j" of the array "x"
-            - ...
+
+        Supported "chain-key" patterns:
+
+        - ``a.b.c`` -- get the item "c"
+        - ``a.b.c[].<i>`` -- get item at index i of array "c"
+        - ``a.b.c[].#`` -- get the last item of array "c" (same as -1)
+        - ``a.b.c[].<i>.x[].<j>`` -- get item at index j of nested array "x"
 
         Args:
-            key (str): The key to get
-
-        Raises:
-            KeyError: when try to get a protected value/or `key` is not existed.
-            GetChainKeyError: Only support chain-key on RNS type, else raise the error.
+            key: The key to get.
 
         Returns:
-            any: The value if the `key` is existed.
+            The value if the key exists.
+
+        Raises:
+            KeyError: When trying to get a protected value or key doesn't exist.
+            GetChainKeyError: When chain-key target is not an RNS type.
         """
         # raw_key = key
         key, *subs = utils.split_key(key)

@@ -2,10 +2,10 @@
 
 ## RecursiveNamespaceV2 Project Enhancement Strategy
 
-**Document Version**: 1.1
+**Document Version**: 1.3
 **Created**: 2026-01-31
-**Last Updated**: 2026-01-31
-**Status**: Active - Cycle 1 Completed ✅
+**Last Updated**: 2026-02-14
+**Status**: Active - Cycle 3 in progress
 
 ---
 
@@ -13,11 +13,13 @@
 
 1. [Introduction](#introduction)
 2. [Current State Assessment](#current-state-assessment)
-3. [PDCA Cycle 1: Foundation & Quality](#pdca-cycle-1-foundation--quality)
-4. [PDCA Cycle 2: Features & Performance](#pdca-cycle-2-features--performance)
-5. [PDCA Cycle 3: Community & Ecosystem](#pdca-cycle-3-community--ecosystem)
-6. [Implementation Roadmap](#implementation-roadmap)
-7. [Success Metrics Dashboard](#success-metrics-dashboard)
+3. [PDCA Cycle 1: Foundation & Quality](#pdca-cycle-1-foundation--quality--completed)
+4. [PDCA Cycle 2: Features & Performance](#pdca-cycle-2-features--performance--completed)
+5. [PDCA Cycle 3: Release Readiness & Code Hygiene](#pdca-cycle-3-release-readiness--code-hygiene)
+6. [Future: Lazy Loading & Performance (Cycle 4)](#future-lazy-loading--performance-cycle-4---tbd)
+7. [Future: Community & Ecosystem (Cycle 5)](#future-community--ecosystem-cycle-5---tbd)
+8. [Implementation Roadmap](#implementation-roadmap)
+9. [Success Metrics Dashboard](#success-metrics-dashboard)
 
 ---
 
@@ -71,7 +73,7 @@ This plan covers improvements across:
 
 #### Important (Medium Priority)
 
-6. **Performance Not Profiled**: No benchmarks or performance testing
+1. **Performance Not Profiled**: No benchmarks or performance testing
 2. **Limited Examples**: Only 5 basic examples
 3. **No Contribution Guide**: Missing CONTRIBUTING.md
 4. **Basic Error Messages**: Could be more descriptive and actionable
@@ -79,7 +81,7 @@ This plan covers improvements across:
 
 #### Nice-to-Have (Low Priority)
 
-11. **No GitHub Templates**: Missing issue/PR templates
+1. **No GitHub Templates**: Missing issue/PR templates
 2. **Limited Community Tools**: No discussions, wiki, or FAQ
 3. **No Badges**: README lacks status badges (CI, coverage, PyPI)
 4. **No Changelog**: Not tracking changes systematically
@@ -95,13 +97,76 @@ This plan covers improvements across:
 
 ## PDCA Cycle 1: Foundation & Quality ✅ COMPLETED
 
+**Completed**: 2026-01-31 (single session) | **Priority**: HIGH | **Details**: [Round_1.md](./Round_1.md)
+
+### Objectives & Results
+
+| Area          | Before        | After                                     | Status |
+| ------------- | ------------- | ----------------------------------------- | ------ |
+| CI/CD         | Publish only  | Full CI pipeline (test, lint, type-check) | ✅     |
+| Type Hints    | 0% coverage   | 100% public API, mypy strict passes       | ✅     |
+| Test Coverage | Unknown       | ≥85%, Codecov integrated                  | ✅     |
+| API Docs      | None          | Sphinx + RTD theme, API ref + guides      | ✅     |
+| Pre-commit    | None          | Ruff, mypy, codespell hooks configured    | ✅     |
+
+### Key Deliverables
+
+- `.github/workflows/ci.yml` - Tests on Python 3.8-3.12, linting, type checking
+- `.github/workflows/type-check.yml` - Dedicated mypy workflow
+- `.pre-commit-config.yaml` - Ruff, mypy, codespell hooks
+- `docs/` - Sphinx documentation with API reference and guides
+- `CONTRIBUTING.md` - Development setup and contribution guidelines
+- Full type hints across `main.py`, `utils.py`, `__init__.py` + `py.typed` marker
+- README badges (CI, coverage, type check, PyPI, license)
+
+### Outcome
+
+All objectives met. Quality gates established as mandatory for PRs. Proceeded to Cycle 2.
+
+---
+
+## PDCA Cycle 2: Features & Performance ✅ COMPLETED
+
+**Completed**: 2026-02-11 | **Priority**: MEDIUM | **Details**: [Round_2.md](./Round_2.md)
+
+### Cycle 2 Results
+
+| Area               | Before           | After                                         | Status   |
+| ------------------ | ---------------- | --------------------------------------------- | -------- |
+| JSON serialization | Pickle/dict only | to_json, from_json, save_json, load_json      | Done     |
+| TOML serialization | None             | to_toml, from_toml, save_toml, load_toml      | Done     |
+| Context managers   | None             | temporary(), overlay() with restoration       | Done     |
+| Performance        | No profiling     | bench_chain_keys.py benchmark, regex caching  | Partial  |
+| Validation         | None             | as_schema() for dataclass conversion          | Partial  |
+| Lazy loading       | None             | Deferred to Cycle 4 (Phase 4)                 | Deferred |
+| Example library    | 5 basic examples | 20 examples across 4 difficulty categories    | Done     |
+
+### Cycle 2 Deliverables
+
+- JSON/TOML methods in `main.py` with `SerializationError` handling and file I/O
+- TOML conditional import: Python 3.11+ `tomllib` with `tomli` fallback
+- `temporary()` context manager yields deepcopy; `overlay()` tracks and restores originals
+- `benchmarks/bench_chain_keys.py` covering split_key, val_get, val_set, creation
+- `as_schema()` method for converting RNS to typed dataclasses
+- 20 examples organized in `examples/{basic,intermediate,advanced,real_world}/`
+
+### Open Items
+
+- **Performance**: Only chain-key benchmarks exist; broader suite (creation, conversion, memory) not yet built
+- **Validation**: `as_schema()` converts but does not enforce schema rules; no standalone validation framework
+- **Lazy loading**: Deferred to Cycle 4 — deferred namespace conversion, broader benchmarks
+
+---
+
+## PDCA Cycle 3: Release Readiness & Code Hygiene
+
 ### Priority: HIGH
 
-### Duration: 4-6 weeks (Completed in 1 session - 2026-01-31)
+### Duration: 1-2 sessions
 
-### Focus: Establish robust foundation for sustainable development
+### Focus: Stabilize codebase for a production-quality release
 
-**Status**: ✅ **COMPLETED** - See [Round_1.md](./Round_1.md) for detailed summary
+**Details**: [Round_3.md](./Round_3.md)
 
 ---
 
@@ -109,947 +174,20 @@ This plan covers improvements across:
 
 #### Objectives
 
-1. Implement comprehensive CI/CD pipeline for automated quality checks
-2. Add complete type hints to all public APIs
-3. Establish code coverage baseline and reporting
-4. Create API reference documentation
-5. Set up pre-commit hooks for code quality
-
-#### Root Cause Analysis
-
-**Why do these issues exist?**
-
-- Project started as rapid prototype focused on functionality
-- Early focus on feature delivery over process
-- Limited automation infrastructure
-- No documented quality standards
-
-#### Improvement Targets
-
-| Area          | Current State | Target State     | Success Metric      |
-| ------------- | ------------- | ---------------- | ------------------- |
-| CI/CD         | Publish only  | Full CI pipeline | All PRs run tests   |
-| Type Hints    | 0% coverage   | 100% public API  | Mypy passes         |
-| Test Coverage | Unknown       | 85%+ tracked     | Coverage reports    |
-| API Docs      | None          | Complete         | Sphinx docs live    |
-| Pre-commit    | None          | Configured       | All commits checked |
-
-#### Prioritization Matrix
-
-**High Impact + High Effort:**
-
-- CI/CD pipeline setup
-- Complete type hint addition
-
-**High Impact + Low Effort:**
-
-- Pre-commit hooks
-- Coverage reporting
-- GitHub badges
-
-**Medium Impact + Medium Effort:**
-
-- API documentation
-- Enhanced error messages
-
----
-
-### 🔨 DO
-
-#### Task Breakdown
-
-##### 1. CI/CD Pipeline Implementation
-
-**Owner**: DevOps/Maintainer
-**Estimated Effort**: 8 hours
-**Dependencies**: None
-
-**Action Steps:**
-
-```yaml
-# Create .github/workflows/ci.yml
-Tasks:
-1. Set up test workflow
-   - Trigger: push, pull_request on main/dev
-   - Python versions: 3.8, 3.9, 3.10, 3.11, 3.12
-   - Run pytest with coverage
-
-2. Set up linting workflow
-   - Run Ruff for linting and formatting
-   - Check code style compliance
-
-3. Set up type checking workflow
-   - Run mypy for type checking
-   - Ensure type safety
-
-4. Add code quality checks
-   - Check for security issues (bandit)
-   - Check for complexity (radon)
-
-5. Add coverage reporting
-   - Upload to Codecov or Coveralls
-   - Fail if coverage drops below threshold
-```
-
-##### 2. Type Hints Addition
-
-**Owner**: Core Developer
-**Estimated Effort**: 16 hours
-**Dependencies**: None
-
-**Action Steps:**
-
-```python
-# Priority order for type hints:
-1. src/recursivenamespace/__init__.py (2 hours)
-   - Add type exports
-   - Document public API types
-
-2. src/recursivenamespace/main.py (8 hours)
-   - recursivenamespace class
-   - All public methods
-   - Private methods (optional)
-
-3. src/recursivenamespace/utils.py (4 hours)
-   - All utility functions
-   - Custom type definitions
-
-4. Create py.typed file (0.5 hours)
-   - Mark package as type-safe
-
-5. Add mypy configuration to pyproject.toml (1.5 hours)
-   - Set strict mode
-   - Configure ignore patterns
-```
-
-**Example Type Hints:**
-
-```python
-from typing import Any, Dict, List, Optional, Union, TypeVar, overload
-
-T = TypeVar('T')
-
-class recursivenamespace(SimpleNamespace):
-    def __init__(
-        self,
-        data: Optional[Dict[str, Any]] = None,
-        accepted_iter_types: Optional[List[type]] = None,
-        use_raw_key: bool = False,
-        **kwargs: Any
-    ) -> None: ...
-
-    def val_set(self, key: str, value: Any) -> None: ...
-
-    def val_get(self, key: str) -> Any: ...
-
-    def get_or_else(
-        self,
-        key: str,
-        or_else: Optional[T] = None,
-        show_log: bool = False
-    ) -> Union[Any, T]: ...
-
-    def to_dict(
-        self,
-        flatten_sep: Union[bool, str] = False
-    ) -> Dict[str, Any]: ...
-```
-
-##### 3. Code Coverage Setup
-
-**Owner**: Core Developer
-**Estimated Effort**: 4 hours
-**Dependencies**: CI/CD pipeline
-
-**Action Steps:**
-
-```bash
-1. Configure coverage in pyproject.toml (1 hour)
-   - Set coverage minimum to 85%
-   - Exclude test files and _version.py
-   - Add HTML and XML reports
-
-2. Integrate with CI (1 hour)
-   - Generate coverage report in workflow
-   - Upload to coverage service
-
-3. Add coverage badge (0.5 hour)
-   - Add to README.md
-   - Link to coverage service
-
-4. Create coverage baseline (1.5 hours)
-   - Run full test suite with coverage
-   - Document current coverage
-   - Identify uncovered code paths
-```
-
-##### 4. API Documentation
-
-**Owner**: Documentation Lead
-**Estimated Effort**: 12 hours
-**Dependencies**: Type hints completed
-
-**Action Steps:**
-
-```bash
-1. Set up Sphinx (3 hours)
-   - Install sphinx, sphinx-rtd-theme
-   - Configure docs/ directory
-   - Set up autodoc extension
-
-2. Write API reference (6 hours)
-   - Document recursivenamespace class
-   - Document utility functions
-   - Document exceptions
-   - Add usage examples
-
-3. Deploy documentation (2 hours)
-   - Set up GitHub Pages or Read the Docs
-   - Configure automatic deployment
-   - Add docs badge to README
-
-4. Write advanced guides (1 hour)
-   - Chain-key access patterns
-   - Array indexing guide
-   - Performance best practices
-```
-
-**Documentation Structure:**
-
-```
-docs/
-├── index.rst
-├── getting_started.rst
-├── api_reference/
-│   ├── recursivenamespace.rst
-│   ├── utils.rst
-│   └── exceptions.rst
-├── advanced_guides/
-│   ├── chain_keys.rst
-│   ├── array_indexing.rst
-│   └── performance.rst
-├── examples/
-│   └── cookbook.rst
-└── contributing.rst
-```
-
-##### 5. Pre-commit Hooks
-
-**Owner**: Core Developer
-**Estimated Effort**: 2 hours
-**Dependencies**: None
-
-**Action Steps:**
-
-```yaml
-# Create .pre-commit-config.yaml
-1. Install pre-commit (0.5 hour)
-   - Add to requirements-dev.txt
-   - Document setup in README
-
-2. Configure hooks (1 hour)
-   - Ruff for linting and formatting
-   - mypy for type checking
-   - codespell for spelling
-   - trailing whitespace removal
-   - YAML/JSON validation
-
-3. Test and document (0.5 hour)
-   - Run on existing codebase
-   - Fix any issues
-   - Add setup instructions to CONTRIBUTING.md
-```
-
-**Example Configuration:**
-
-```yaml
-repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-      - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-all]
-
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.6
-    hooks:
-      - id: codespell
-        args: [--ignore-words-list=rns]
-```
-
-#### Implementation Schedule
-
-**Week 1-2: CI/CD & Pre-commit**
-
-- Day 1-2: CI/CD pipeline setup
-- Day 3-4: Pre-commit hooks configuration
-- Day 5: Testing and validation
-
-**Week 3-4: Type Hints**
-
-- Day 1-3: Add type hints to main.py
-- Day 4: Add type hints to utils.py and **init**.py
-- Day 5: Mypy configuration and fixes
-
-**Week 5: Coverage**
-
-- Day 1-2: Coverage setup and integration
-- Day 3-5: Write additional tests for uncovered code
-
-**Week 6: Documentation**
-
-- Day 1-3: Sphinx setup and API reference
-- Day 4-5: Advanced guides and deployment
-
----
-
-### ✅ CHECK
-
-#### Evaluation Criteria
-
-##### 1. CI/CD Pipeline
-
-**Success Criteria:**
-
-- [ ] All tests run automatically on every PR
-- [ ] Pipeline tests Python 3.8, 3.9, 3.10, 3.11, 3.12
-- [ ] Linting checks pass
-- [ ] Type checking passes
-- [ ] Pipeline completes in < 10 minutes
-- [ ] Failed checks block PR merging
-
-**Measurement Method:**
-
-- Review GitHub Actions workflow runs
-- Check PR merge requirements
-- Measure pipeline execution time
-
-**Target Date**: End of Week 2
-
----
-
-##### 2. Type Hints
-
-**Success Criteria:**
-
-- [ ] 100% of public API has type hints
-- [ ] Mypy passes with no errors in strict mode
-- [ ] IDE autocomplete works for all methods
-- [ ] py.typed file present in package
-
-**Measurement Method:**
-
-- Run `mypy src/recursivenamespace --strict`
-- Test IDE autocomplete (VSCode, PyCharm)
-- Check package includes py.typed
-
-**Target Date**: End of Week 4
-
----
-
-##### 3. Test Coverage
-
-**Success Criteria:**
-
-- [ ] Code coverage ≥ 85%
-- [ ] Coverage reports generated on every CI run
-- [ ] Coverage badge visible in README
-- [ ] Coverage trend tracked over time
-
-**Measurement Method:**
-
-- Check coverage reports in CI
-- Review codecov.io dashboard
-- Verify uncovered lines are documented
-
-**Target Date**: End of Week 5
-
----
-
-##### 4. Documentation
-
-**Success Criteria:**
-
-- [ ] API documentation published and accessible
-- [ ] All public methods documented
-- [ ] At least 3 advanced guides written
-- [ ] Documentation builds without warnings
-
-**Measurement Method:**
-
-- Visit documentation site
-- Review documentation completeness
-- Check Sphinx build logs
-
-**Target Date**: End of Week 6
-
----
-
-##### 5. Pre-commit Hooks
-
-**Success Criteria:**
-
-- [ ] Pre-commit hooks configured and tested
-- [ ] Hooks run on every commit
-- [ ] Setup instructions in CONTRIBUTING.md
-- [ ] All existing code passes hooks
-
-**Measurement Method:**
-
-- Test hook execution
-- Review contribution guide
-- Run `pre-commit run --all-files`
-
-**Target Date**: End of Week 2
-
----
-
-#### Performance Indicators
-
-| Metric               | Before      | Target                   | Measurement     |
-| -------------------- | ----------- | ------------------------ | --------------- |
-| CI/CD Pipelines      | 1 (publish) | 2+ (test, lint, publish) | GitHub Actions  |
-| Type Coverage        | 0%          | 100% (public API)        | Mypy report     |
-| Test Coverage        | Unknown     | ≥85%                     | Coverage.py     |
-| Documentation Pages  | 1 (README)  | 15+                      | Sphinx build    |
-| Quality Gates        | 0           | 4+                       | Pre-commit + CI |
-| Build Time           | N/A         | <10 min                  | GitHub Actions  |
-| Failed Builds Caught | 0           | 100%                     | CI metrics      |
-
----
-
-### 🔄 ACT
-
-#### Standardization
-
-**If objectives are met (≥80% success rate):**
-
-1. **Update Development Workflow**
-   - Make CI checks mandatory for all PRs
-   - Require coverage to not decrease
-   - Enforce type checking on new code
-
-2. **Document Standards**
-   - Create CONTRIBUTING.md with:
-     - Type hint requirements
-     - Test coverage requirements
-     - Documentation requirements
-     - Code style guide
-
-3. **Automate Quality Gates**
-   - Configure branch protection rules
-   - Set up required status checks
-   - Add CODEOWNERS file
-
-4. **Communicate Changes**
-   - Update README with new badges
-   - Announce improvements in release notes
-   - Update project documentation
-
-**Example Branch Protection Rules:**
-
-```yaml
-Branch: main
-Require:
-  - All tests pass
-  - Code coverage ≥ 85%
-  - Type checking passes
-  - At least 1 approving review
-  - Branch is up to date
-```
-
-#### Lessons Learned
-
-**Document:**
-
-- What worked well?
-- What challenges were encountered?
-- What would we do differently?
-- What tools/approaches were most effective?
-
-**Knowledge Base Entry:**
-
-```markdown
-# Cycle 1 Retrospective
-
-## What Went Well
-- [To be filled after implementation]
-
-## Challenges
-- [To be filled after implementation]
-
-## Improvements for Next Cycle
-- [To be filled after implementation]
-
-## Key Takeaways
-- [To be filled after implementation]
-```
-
-#### Next Steps
-
-**If successful:**
-
-- Proceed to PDCA Cycle 2: Features & Performance
-- Maintain and monitor established quality gates
-- Continue improving based on feedback
-
-**If partially successful:**
-
-- Identify gaps and create focused improvement plan
-- Adjust timelines and resources
-- Re-evaluate priorities
-
-**If unsuccessful:**
-
-- Conduct root cause analysis
-- Revise approach and plan
-- Consider external support or training
-
----
-
-## PDCA Cycle 2: Features & Performance
-
-### Priority: MEDIUM
-
-### Duration: 6-8 weeks
-
-### Focus: Enhance functionality and optimize performance
-
----
-
-### 🎯 PLAN
-
-#### Objectives
-
-1. Add JSON and TOML serialization support
-2. Implement performance benchmarks and optimize hot paths
-3. Add context manager support for temporary namespaces
-4. Implement lazy loading for large nested structures
-5. Add validation and schema enforcement capabilities
-6. Create comprehensive example library
-
-#### Improvement Areas
-
-##### 1. Serialization Enhancements
-
-**Current**: Only pickle and dict conversion
-**Target**: Support multiple formats
-
-**Features to Add:**
-
-```python
-# JSON Support
-rns.to_json(indent=2, sort_keys=True) -> str
-rns.from_json(json_str) -> RNS
-rns.load_json(filepath) -> RNS
-rns.save_json(filepath)
-
-# TOML Support
-rns.to_toml() -> str
-rns.from_toml(toml_str) -> RNS
-rns.load_toml(filepath) -> RNS
-rns.save_toml(filepath)
-
-# YAML Support (optional, requires dependency)
-rns.to_yaml() -> str
-rns.from_yaml(yaml_str) -> RNS
-```
-
-##### 2. Performance Optimization
-
-**Current**: No performance profiling
-**Target**: 2-5x faster for common operations
-
-**Optimization Targets:**
-
-- Chain-key parsing (regex compilation)
-- Nested structure creation (reduce object allocations)
-- to_dict() conversion (optimize recursion)
-- Array indexing operations
-
-**Benchmarking Suite:**
-
-```python
-# Create benchmarks/
-benchmarks/
-├── bench_creation.py
-├── bench_access.py
-├── bench_conversion.py
-└── bench_chain_keys.py
-```
-
-##### 3. Context Manager Support
-
-**Use Case**: Temporary configurations
-
-```python
-# Proposed API
-with rns.temporary(config) as temp_config:
-    temp_config.debug = True
-    # Changes don't affect original
-# Original config unchanged
-
-with rns.overlay(base_config, override_config) as merged:
-    # Merged configuration
-    pass
-```
-
-##### 4. Lazy Loading
-
-**Use Case**: Large configuration files
-
-```python
-# Proposed API
-rns = RNS.lazy_load('huge_config.json')
-# Only loads sections when accessed
-value = rns.section1.subsection.value  # Loads on demand
-```
-
-##### 5. Validation Support
-
-**Use Case**: Schema enforcement
-
-```python
-# Proposed API
-from recursivenamespace import RNS, validate
-
-schema = {
-    'name': str,
-    'age': int,
-    'address': {
-        'street': str,
-        'city': str
-    }
-}
-
-@validate(schema)
-class Config(RNS):
-    pass
-
-config = Config(data)  # Validates on creation
-```
-
-##### 6. Expanded Examples
-
-**Current**: 5 basic examples
-**Target**: 20+ examples covering various use cases
-
-**Example Categories:**
-
-- Configuration management
-- API response handling
-- ML experiment tracking
-- Data transformation pipelines
-- Testing fixtures
-- Plugin systems
-- Settings management
-
----
-
-### 🔨 DO
-
-#### Implementation Tasks
-
-##### 1. JSON/TOML Serialization (2 weeks)
-
-```python
-# src/recursivenamespace/serialization.py
-
-import json
-from typing import Optional, Union, Any
-
-class SerializationMixin:
-    """Mixin for serialization support"""
-
-    def to_json(
-        self,
-        indent: Optional[int] = 2,
-        sort_keys: bool = False,
-        **kwargs: Any
-    ) -> str:
-        """Convert to JSON string"""
-        return json.dumps(self.to_dict(), indent=indent,
-                         sort_keys=sort_keys, **kwargs)
-
-    @classmethod
-    def from_json(cls, json_str: str, **kwargs: Any) -> 'recursivenamespace':
-        """Create from JSON string"""
-        data = json.loads(json_str)
-        return cls(data, **kwargs)
-
-    def save_json(self, filepath: str, **kwargs: Any) -> None:
-        """Save to JSON file"""
-        with open(filepath, 'w') as f:
-            f.write(self.to_json(**kwargs))
-
-    @classmethod
-    def load_json(cls, filepath: str, **kwargs: Any) -> 'recursivenamespace':
-        """Load from JSON file"""
-        with open(filepath, 'r') as f:
-            return cls.from_json(f.read(), **kwargs)
-```
-
-**Tasks:**
-
-- [ ] Implement JSON serialization (4 days)
-- [ ] Add TOML support (3 days)
-- [ ] Write tests (2 days)
-- [ ] Update documentation (1 day)
-
-##### 2. Performance Benchmarking & Optimization (2 weeks)
-
-```python
-# benchmarks/bench_suite.py
-
-import time
-from recursivenamespace import RNS
-
-def benchmark_creation():
-    """Benchmark nested structure creation"""
-    start = time.perf_counter()
-    for _ in range(10000):
-        rns = RNS({
-            'level1': {
-                'level2': {
-                    'level3': {'value': 42}
-                }
-            }
-        })
-    return time.perf_counter() - start
-
-def benchmark_chain_access():
-    """Benchmark chain-key access"""
-    rns = create_deep_structure()
-    start = time.perf_counter()
-    for _ in range(10000):
-        value = rns.val_get('level1.level2.level3.value')
-    return time.perf_counter() - start
-```
-
-**Optimization Strategies:**
-
-- Cache compiled regex patterns
-- Use `__slots__` where appropriate
-- Optimize recursive traversal
-- Implement copy-on-write for large structures
-
-**Tasks:**
-
-- [ ] Create benchmark suite (3 days)
-- [ ] Profile current performance (2 days)
-- [ ] Implement optimizations (5 days)
-- [ ] Validate improvements (2 days)
-- [ ] Document performance characteristics (2 days)
-
-##### 3. Context Manager Support (1 week)
-
-```python
-# src/recursivenamespace/context.py
-
-from contextlib import contextmanager
-from copy import deepcopy
-
-@contextmanager
-def temporary(self):
-    """Create temporary copy for context"""
-    temp = self.deepcopy()
-    try:
-        yield temp
-    finally:
-        pass  # temp discarded
-
-@contextmanager
-def overlay(base, overrides):
-    """Merge configurations temporarily"""
-    merged = base.deepcopy()
-    merged.update(overrides)
-    try:
-        yield merged
-    finally:
-        pass
-```
-
-**Tasks:**
-
-- [ ] Implement context managers (2 days)
-- [ ] Write tests (2 days)
-- [ ] Create examples (1 day)
-
-##### 4. Lazy Loading (1.5 weeks)
-
-**Note**: Complex feature, may be deferred
-
-##### 5. Validation Framework (1.5 weeks)
-
-```python
-# src/recursivenamespace/validation.py
-
-from typing import Dict, Any, Type
-import dataclasses
-
-class ValidationError(Exception):
-    pass
-
-def validate_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> None:
-    """Validate data against schema"""
-    for key, expected_type in schema.items():
-        if key not in data:
-            raise ValidationError(f"Missing required key: {key}")
-
-        if isinstance(expected_type, dict):
-            validate_schema(data[key], expected_type)
-        elif not isinstance(data[key], expected_type):
-            raise ValidationError(
-                f"Invalid type for {key}: expected {expected_type}, "
-                f"got {type(data[key])}"
-            )
-```
-
-**Tasks:**
-
-- [ ] Design validation API (2 days)
-- [ ] Implement basic validation (3 days)
-- [ ] Add schema support (2 days)
-- [ ] Write tests (2 days)
-- [ ] Documentation (1 day)
-
-##### 6. Example Library (1 week)
-
-```
-examples/
-├── README.md
-├── basic/
-│   ├── 01_simple_usage.py
-│   ├── 02_nested_access.py
-│   └── 03_conversion.py
-├── intermediate/
-│   ├── 04_config_management.py
-│   ├── 05_api_responses.py
-│   ├── 06_yaml_integration.py
-│   └── 07_data_transformation.py
-├── advanced/
-│   ├── 08_ml_experiments.py
-│   ├── 09_plugin_system.py
-│   ├── 10_dynamic_schemas.py
-│   └── 11_performance_tips.py
-└── real_world/
-    ├── 12_flask_config.py
-    ├── 13_django_settings.py
-    ├── 14_fastapi_config.py
-    └── 15_data_pipeline.py
-```
-
----
-
-### ✅ CHECK
-
-#### Success Criteria
-
-| Feature          | Metric            | Target      | Measurement     |
-| ---------------- | ----------------- | ----------- | --------------- |
-| JSON Support     | Tests passing     | 100%        | Test suite      |
-| TOML Support     | Tests passing     | 100%        | Test suite      |
-| Performance      | Speed improvement | 2-5x faster | Benchmarks      |
-| Context Managers | Tests passing     | 100%        | Test suite      |
-| Validation       | Tests passing     | 100%        | Test suite      |
-| Examples         | Count             | 15+         | Directory count |
-| Documentation    | Pages added       | 10+         | Sphinx count    |
-
-#### Evaluation Process
-
-1. Run full test suite with new features
-2. Execute benchmark comparisons
-3. Review example coverage
-4. User testing with beta users
-5. Performance profiling under load
-
----
-
-### 🔄 ACT
-
-#### Standardization (if successful)
-
-- Release new minor version (v2.1.0)
-- Update documentation with new features
-- Create migration guide for new APIs
-- Announce features to community
-
-#### Feedback Loop
-
-- Collect user feedback on new features
-- Monitor performance in production
-- Track feature adoption rates
-- Identify pain points
-
-#### Continuous Monitoring
-
-- Set up performance regression tests
-- Monitor PyPI download metrics
-- Track GitHub issues for feature requests
-- Analyze usage patterns
-
----
-
-## PDCA Cycle 3: Community & Ecosystem
-
-### Priority: MEDIUM-LOW
-
-### Duration: Ongoing
-
-### Focus: Grow adoption and community engagement
-
----
-
-### 🎯 PLAN
-
-#### Objectives
-
-1. Increase PyPI downloads by 50%
-2. Grow GitHub stars to 500+
-3. Establish active contributor community (10+ contributors)
-4. Create integration examples with popular frameworks
-5. Publish blog posts and tutorials
-6. Present at Python conferences or meetups
-
-#### Community Building Strategies
-
-##### 1. Content Marketing
-
-- Write blog posts about use cases
-- Create video tutorials
-- Publish case studies
-- Write technical articles
-
-##### 2. Integration Examples
-
-- Flask/Django/FastAPI integration guides
-- MLflow experiment tracking
-- Hydra configuration alternative
-- Click CLI integration
-- Pytest fixture examples
-
-##### 3. Community Infrastructure
-
-- GitHub Discussions enabled
-- Discord/Slack community (optional)
-- Monthly contributor meetings
-- Good first issue labels
-- Contributor recognition program
-
-##### 4. Outreach
-
-- Submit talks to PyCon, EuroPython
-- Write for Real Python, Medium
-- Reddit posts in r/Python
-- Twitter/LinkedIn presence
-- Podcast interviews
+1. Extract exception classes to `errors.py` for clean module boundaries
+2. Export all public exceptions (`SetChainKeyError`, `GetChainKeyError`)
+3. Clean up error handling (remove bare `except Exception`, generic raises)
+4. Update outdated documentation (`Summary.md`, CI fallback messages)
+5. Enforce strict type checking in CI (remove `type-check.yml` fallback)
+6. Tag and release a stable version
+
+#### Why This Matters
+
+Cycles 1-2 added significant functionality (serialization, context managers,
+20+ examples, 100+ tests). But the codebase grew organically — exceptions
+live inline in `main.py`, not all public types are exported, and some docs
+still describe features as "future work" when they're already done. A stable
+release needs these rough edges cleaned up.
 
 ---
 
@@ -1057,161 +195,129 @@ examples/
 
 #### Action Items
 
-##### 1. Documentation & Content (Ongoing)
+##### 1. Code Organization (errors.py extraction)
 
-- [ ] Write "Why RecursiveNamespace?" blog post
-- [ ] Create comparison with alternatives
-- [ ] Publish framework integration guides
-- [ ] Record video tutorials
-- [ ] Create interactive examples (Jupyter notebooks)
+- [ ] Create `src/recursivenamespace/errors.py`
+- [ ] Move `SetChainKeyError`, `GetChainKeyError`, `SerializationError` there
+- [ ] Update imports in `main.py`
+- [ ] Export all exceptions in `__init__.py` + `__all__`
+- [ ] Verify no circular imports
 
-##### 2. Community Tools (1 week)
+##### 2. Error Handling Cleanup
 
-- [ ] Enable GitHub Discussions
-- [ ] Create issue templates
-- [ ] Create PR template
-- [ ] Add CODEOWNERS
-- [ ] Create GOVERNANCE.md
-- [ ] Set up GitHub Sponsors (optional)
+- [ ] Replace generic `Exception` in `update()` with specific error type
+- [ ] Audit bare `except Exception` blocks in `get_or_else()` and elsewhere
+- [ ] Ensure chain-key array errors use `SetChainKeyError`/`GetChainKeyError`
+  consistently (not raw `KeyError`)
 
-##### 3. Marketing Materials (1 week)
+##### 3. Documentation Sync
 
-- [ ] Create project logo
-- [ ] Design banner image
-- [ ] Create comparison table with alternatives
-- [ ] Build showcase page
-- [ ] Collect testimonials
+- [ ] Update `Summary.md` — remove "future enhancements" that are done
+  (JSON/TOML, context managers are implemented)
+- [ ] Update project structure diagram in `Summary.md` to include new files
+  (`test_serialization.py`, `test_context_managers.py`, `benchmarks/`, etc.)
+- [ ] Review and update `PDCA.md` status markers
 
-##### 4. Framework Integrations (2-3 weeks)
+##### 4. CI Hardening
 
-```python
-# examples/frameworks/flask_config.py
-from flask import Flask
-from recursivenamespace import RNS
+- [ ] Remove "Type checking will be enforced later" fallback in
+  `.github/workflows/type-check.yml`
+- [ ] Confirm Ruff target (`py310`) is intentional tooling-only; document
+  that library supports 3.8+
+- [ ] Verify coverage threshold (85%) is met on current main branch
 
-def create_app(config_dict):
-    app = Flask(__name__)
-    config = RNS(config_dict)
+##### 5. Release Preparation
 
-    app.config.from_mapping(config.to_dict())
-    return app, config
-```
-
-##### 5. Outreach Campaign (Ongoing)
-
-- [ ] Submit talk proposals
-- [ ] Write guest blog posts
-- [ ] Engage on social media
-- [ ] Respond to StackOverflow questions
-- [ ] Participate in Python forums
+- [ ] Verify `pyproject.toml` metadata is accurate
+- [ ] Confirm all `__all__` exports match public API
+- [ ] Run full quality gate: `ruff check && ruff format --check && mypy src/ && pytest`
+- [ ] Tag release version
 
 ---
 
 ### ✅ CHECK
 
-#### Community Metrics
+#### Release Readiness Checklist
 
-| Metric                 | Current  | 6-Month Target | 1-Year Target |
-| ---------------------- | -------- | -------------- | ------------- |
-| GitHub Stars           | ~50      | 200            | 500           |
-| PyPI Downloads/month   | ~500     | 2,500          | 10,000        |
-| Contributors           | 1-2      | 5              | 10+           |
-| GitHub Issues          | Variable | <10 open       | <15 open      |
-| Documentation Visitors | Unknown  | 500/mo         | 2,000/mo      |
-| Blog Post Views        | 0        | 5,000          | 20,000        |
-
-#### Engagement Metrics
-
-- Issue response time: <48 hours
-- PR review time: <72 hours
-- Community questions answered: >90%
-- Conference talks given: 1-2/year
-- Blog posts published: 1/quarter
+| Criterion                             | Status |
+| ------------------------------------- | ------ |
+| All public exceptions exported        | ⏳     |
+| Errors in dedicated module            | ⏳     |
+| No generic `Exception` raises         | ⏳     |
+| Summary.md reflects actual features   | ⏳     |
+| mypy strict enforced in CI            | ⏳     |
+| Coverage ≥ 85%                        | ✅     |
+| All tests pass (3.8-3.12)             | ✅     |
+| Zero external dependencies            | ✅     |
+| README up to date                     | ✅     |
+| Examples working                      | ✅     |
 
 ---
 
 ### 🔄 ACT
 
-#### Success Actions
+#### Post-Release
 
-- Establish contributor recognition program
-- Create monthly project newsletter
-- Host virtual meetups for users
-- Build partnerships with larger projects
+- Tag stable version on PyPI
+- Update PDCA status to reflect Cycle 3 completion
+- Evaluate whether community/ecosystem work (original Cycle 3 scope)
+  becomes Cycle 4
 
-#### Continuous Improvement
+---
 
-- Survey users quarterly
-- Track feature requests
-- Monitor competitor developments
-- Adapt strategy based on feedback
+## Future: Lazy Loading & Performance (Cycle 4 - TBD)
+
+> Deferred from Cycle 2 due to complexity. To be planned after the
+> stable release from Cycle 3.
+
+- **Deferred namespace conversion**: Convert nested dicts to `recursivenamespace`
+  objects on access rather than eagerly at initialization
+- **Broader benchmark suite**: Creation, conversion, memory profiling
+  (currently only chain-key benchmarks exist)
+- **Hot path optimization**: Profile real-world workloads, consider
+  Cython for critical paths if warranted
+- **Optional opt-in**: Lazy mode via parameter to maintain backward compatibility
+
+## Future: Community & Ecosystem (Cycle 5 - TBD)
+
+> The following items were the original Cycle 3 scope. They remain valid
+> goals but are deferred until after lazy loading and performance work.
+
+- Content marketing (blog posts, tutorials, case studies)
+- Framework integration guides (Flask, Django, FastAPI)
+- Community infrastructure (GitHub Discussions, issue templates, CODEOWNERS)
+- Outreach (PyCon talks, Real Python articles, Reddit)
+- Growth targets (500 stars, 10K downloads/month, 10+ contributors)
 
 ---
 
 ## Implementation Roadmap
 
-### Phase 1: Foundation (Months 1-2)
+### Phase 1: Foundation ✅ (Cycle 1)
 
-**PDCA Cycle 1 Start**
+- CI/CD pipeline, type hints, pre-commit, Sphinx docs, coverage tracking
+- See [Round_1.md](./Round_1.md)
 
-- ✅ Weeks 1-2: CI/CD & Pre-commit
-- ✅ Weeks 3-4: Type Hints
-- ✅ Week 5: Coverage
-- ✅ Week 6: Documentation
-- ✅ Weeks 7-8: Buffer & Testing
+### Phase 2: Features ✅ (Cycle 2)
 
-**Deliverables:**
+- JSON/TOML serialization, context managers, benchmarks, 20 examples
+- See [Round_2.md](./Round_2.md)
 
-- Full CI/CD pipeline
-- 100% type hint coverage
-- ≥85% test coverage
-- Complete API documentation
-- Pre-commit hooks
+### Phase 3: Release Readiness (Cycle 3 - Current)
 
-### Phase 2: Enhancement (Months 3-4)
+- Error module extraction, export cleanup, doc sync, CI hardening, stable tag
+- See [Round_3.md](./Round_3.md)
 
-**PDCA Cycle 2 Start**
+### Phase 4: Lazy Loading & Performance (TBD)
 
-- ✅ Weeks 9-10: JSON/TOML Serialization
-- ✅ Weeks 11-12: Performance Optimization
-- ✅ Week 13: Context Managers
-- ✅ Week 14: Validation Framework
-- ✅ Week 15: Example Library
-- ✅ Week 16: Buffer & Testing
+- Deferred namespace conversion (convert nested dicts on access, not at init)
+- Broader performance benchmark suite (creation, conversion, memory)
+- Profiling and optimization of hot paths
+- See [Round_4.md](./Round_4.md) (to be created)
 
-**Deliverables:**
+### Phase 5: Community & Ecosystem (TBD)
 
-- JSON/TOML support
-- 2-5x performance improvement
-- Context manager support
-- Validation framework
-- 15+ examples
-
-### Phase 3: Growth (Months 5-6)
-
-**PDCA Cycle 3 Start**
-
-- ✅ Week 17-18: Community infrastructure
-- ✅ Week 19-20: Framework integrations
-- ✅ Week 21-22: Content creation
-- ✅ Week 23-24: Outreach campaign
-
-**Deliverables:**
-
-- Active community channels
-- 5+ framework integrations
-- 3+ blog posts
-- Conference talk proposal
-
-### Phase 4: Stabilization (Months 7-12)
-
-**Ongoing**
-
-- Monthly releases
-- Quarterly feature additions
-- Continuous community engagement
-- Performance monitoring
-- Security updates
+- To be planned after stable release
 
 ---
 
@@ -1219,7 +325,7 @@ def create_app(config_dict):
 
 ### Code Quality Metrics
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │ Code Quality Score: [██████████] 85/100         │
 ├─────────────────────────────────────────────────┤
@@ -1234,7 +340,7 @@ def create_app(config_dict):
 
 ### Performance Metrics
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │ Performance Benchmarks (vs Baseline)            │
 ├─────────────────────────────────────────────────┤
@@ -1247,7 +353,7 @@ def create_app(config_dict):
 
 ### Community Growth
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │ Community Health Score: [██████] 60/100         │
 ├─────────────────────────────────────────────────┤
@@ -1261,7 +367,7 @@ def create_app(config_dict):
 
 ### Release Velocity
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │ Release Cadence                                 │
 ├─────────────────────────────────────────────────┤
@@ -1351,7 +457,7 @@ def create_app(config_dict):
 - mypy, ruff
 - sphinx, sphinx-rtd-theme
 - pre-commit
-- pdm
+- uv
 
 **CI/CD:**
 
@@ -1400,12 +506,15 @@ def create_app(config_dict):
 
 ## Document History
 
-| Version | Date       | Author       | Changes                    |
-| ------- | ---------- | ------------ | -------------------------- |
-| 1.0     | 2026-01-31 | AI Assistant | Initial PDCA plan creation |
+| Version | Date       | Author       | Changes                              |
+| ------- | ---------- | ------------ | ------------------------------------ |
+| 1.0     | 2026-01-31 | AI Assistant | Initial PDCA plan creation           |
+| 1.1     | 2026-01-31 | AI Assistant | Cycle 1 completed                    |
+| 1.2     | 2026-02-11 | AI Assistant | Condensed Cycle 1 and uv migration   |
+| 1.3     | 2026-02-14 | AI Assistant | Cycle 3 refocused: release readiness |
 
 ---
 
-**Next Review Date**: [To be scheduled after Cycle 1 completion]
+**Next Review Date**: After Cycle 3 completion
 **Document Owner**: Project Maintainer
-**Status**: Active - Cycle 1 in planning phase
+**Status**: Active - Cycle 3 in progress

@@ -114,21 +114,31 @@ rn.nested.new_field = 'also works'  # Creates nested namespace automatically
 RecursiveNamespaceV2/
 ├── src/
 │   └── recursivenamespace/
-│       ├── __init__.py           # Package exports
+│       ├── __init__.py           # Package exports (RNS, aliases, exceptions)
 │       ├── main.py               # Core recursivenamespace class
-│       ├── utils.py              # Utility functions
-│       └── _version.py           # Version management
+│       ├── utils.py              # Key parsing & flattening utilities
+│       ├── _version.py           # Version management (auto-generated)
+│       └── py.typed              # PEP 561 type hint marker
 ├── tests/
+│   ├── fixtures/                 # Test data (sample_config.json/.toml)
 │   ├── test_recursive_namespace.py
 │   ├── test_rns_v2.py
-│   └── test_utils.py
+│   ├── test_utils.py
+│   ├── test_serialization.py     # JSON/TOML round-trip tests
+│   ├── test_context_managers.py  # temporary(), overlay() tests
+│   └── test_core_coverage.py     # Edge cases & protected keys
 ├── examples/
-│   ├── basic_usage.py
-│   ├── nested_namespace.py
-│   ├── keys_vs_attributes.py
-│   └── click_package.py
+│   ├── basic/                    # 01-03: creation, operations, normalization
+│   ├── intermediate/             # 04-08: nesting, serialization, chain-keys
+│   ├── advanced/                 # 09-12: decorator, schema, flatten
+│   └── real_world/               # 13-15: Click, API responses, ML
+├── benchmarks/
+│   └── bench_chain_keys.py       # Performance profiling
+├── docs/                         # Sphinx documentation
+├── .github/workflows/            # CI (test, lint, type-check, publish)
 ├── pyproject.toml                # Project configuration
-├── setup.py                      # Setup script
+├── CONTRIBUTING.md               # Developer guide
+├── AGENT.md                      # AI pair programming guide
 └── README.md
 ```
 
@@ -147,6 +157,10 @@ The main class that extends `SimpleNamespace` with the following key methods:
 - `as_schema(schema_cls)` - Convert to dataclass schema
 - `items()`, `keys()`, `values()` - Dictionary-like iteration
 - `copy()`, `deepcopy()` - Copying operations
+- `to_json()`, `from_json()`, `save_json()`, `load_json()` - JSON serialization
+- `to_toml()`, `from_toml()`, `save_toml()`, `load_toml()` - TOML serialization
+- `temporary()` - Context manager yielding a deepcopy, restores on exit
+- `overlay(overrides)` - Context manager applying overrides, restores on exit
 
 #### 2. Utility Module ([src/recursivenamespace/utils.py](../src/recursivenamespace/utils.py))
 
@@ -331,9 +345,9 @@ user_email = api_response.user.profile.email
 Run tests:
 
 ```bash
-pytest -s
+uv run pytest -s
 # With coverage
-coverage run -m pytest
+uv run coverage run -m pytest
 ```
 
 ### Code Quality Tools
@@ -367,6 +381,8 @@ from recursivenamespace import rns                 # Module access
 | Dynamic nested creation | No              | Yes                |
 | Protected keys          | No              | Yes                |
 | Schema conversion       | No              | Yes                |
+| JSON/TOML serialization | No              | Yes                |
+| Context managers        | No              | Yes                |
 
 ## Error Handling
 
@@ -374,6 +390,7 @@ The library provides custom exceptions for specific error cases:
 
 - `SetChainKeyError` - Raised when attempting to set a chain-key on incompatible types
 - `GetChainKeyError` - Raised when attempting to get a chain-key from incompatible types
+- `SerializationError` - Raised when JSON/TOML serialization or deserialization fails
 - `KeyError` - Raised for protected key access or missing keys
 
 ## Performance Considerations
@@ -381,7 +398,9 @@ The library provides custom exceptions for specific error cases:
 - **Lightweight**: No external dependencies
 - **Lazy Processing**: Only processes nested structures as needed
 - **Memory Efficient**: Uses Python's built-in `SimpleNamespace` as base
+- **Regex Caching**: `@lru_cache` on separator pattern compilation
 - **Copy Operations**: Supports both shallow (`copy()`) and deep (`deepcopy()`) copying
+- **Benchmarks**: `benchmarks/bench_chain_keys.py` for profiling chain-key ops
 
 ## Version Information
 
@@ -397,6 +416,8 @@ Version is managed through Git tags using Versioneer:
 
 ```bash
 pip install RecursiveNamespaceV2
+# or with uv
+uv pip install RecursiveNamespaceV2
 ```
 
 **From Source:**
@@ -404,7 +425,8 @@ pip install RecursiveNamespaceV2
 ```bash
 git clone https://github.com/pasxd245/RecursiveNamespaceV2.git
 cd RecursiveNamespaceV2
-pip install -e .
+uv venv
+uv pip install -e ".[test]"
 ```
 
 ## Contributing
@@ -416,21 +438,32 @@ The project welcomes contributions with these guidelines:
 - Update documentation for new features
 - Ensure all tests pass before submitting
 
-## Future Enhancements
+## Completed Enhancements (Cycles 1-2)
 
-Based on the codebase, potential areas for future development:
+The following items have been implemented:
 
-- Type hints for better IDE support
-- Additional serialization formats (JSON, TOML)
-- Performance optimizations for large datasets
-- More comprehensive documentation
-- Additional utility methods for common operations
+- ✅ Full type hints (100% public API, mypy strict)
+- ✅ JSON/TOML serialization (`to_json`, `from_json`, `to_toml`, `from_toml`, file I/O)
+- ✅ Context managers (`temporary()`, `overlay()`)
+- ✅ Performance benchmarking (`benchmarks/bench_chain_keys.py`, regex caching)
+- ✅ CI/CD pipeline (test on Python 3.8-3.12, lint, type-check)
+- ✅ Sphinx documentation with API reference and guides
+- ✅ 20 examples across 4 difficulty categories
+- ✅ Pre-commit hooks (Ruff, mypy, codespell)
+
+## Future Considerations
+
+- Lazy loading for deferred namespace conversion (see PDCA Cycle 4)
+- Broader performance benchmarks and hot path optimization (see PDCA Cycle 4)
+- Async file I/O for large serialization payloads
+- Schema validation beyond `as_schema()` conversion
+- Community and ecosystem growth (see PDCA Cycle 5)
 
 ## Conclusion
 
-RecursiveNamespaceV2 provides a powerful yet lightweight solution for working with nested data structures in Python. Its automatic recursive conversion, dual access patterns, and advanced features like chain-key access make it ideal for configuration management, data processing, and any scenario involving complex nested dictionaries.
+RecursiveNamespaceV2 provides a powerful yet lightweight solution for working with nested data structures in Python. Its automatic recursive conversion, dual access patterns, and advanced features like chain-key access and JSON/TOML serialization make it ideal for configuration management, data processing, and any scenario involving complex nested dictionaries.
 
 ---
 
-**Generated**: 2026-01-31
+**Last Updated**: 2026-02-14
 **Project Version**: Git-managed via Versioneer

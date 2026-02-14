@@ -7,12 +7,15 @@ Installation
 From PyPI::
 
     pip install RecursiveNamespaceV2
+    # or with uv
+    uv pip install RecursiveNamespaceV2
 
-From Source::
+From Source (using uv)::
 
     git clone https://github.com/pasxd245/RecursiveNamespaceV2.git
     cd RecursiveNamespaceV2
-    pip install -e .
+    uv venv
+    uv pip install -e ".[test]"
 
 Basic Usage
 -----------

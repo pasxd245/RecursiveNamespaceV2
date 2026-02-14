@@ -2,9 +2,7 @@ Utils Module
 ============
 
 .. automodule:: recursivenamespace.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :no-members:
 
 Key Manipulation
 ----------------

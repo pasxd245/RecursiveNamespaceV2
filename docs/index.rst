@@ -21,6 +21,8 @@ Quick Start
 Installation::
 
     pip install RecursiveNamespaceV2
+    # or with uv
+    uv pip install RecursiveNamespaceV2
 
 Basic Usage:
 

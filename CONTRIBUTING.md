@@ -19,30 +19,29 @@ Thank you for your interest in contributing to RecursiveNamespaceV2! This docume
    cd RecursiveNamespaceV2
    ```
 
-2. **Create a virtual environment**
+2. **Install uv** (if not already installed)
 
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-3. **Install uv and dependencies**
-
-   ```bash
-   # Option 1: Via pip
-   pip install uv
-
-   # Option 2: Via install script (recommended)
+   # Via install script (recommended)
    curl -LsSf https://astral.sh/uv/install.sh | sh
 
-   # Install dependencies
+   # Or via pip
+   pip install uv
+   ```
+
+3. **Create a virtual environment and install dependencies**
+
+   ```bash
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   uv pip install -e ".[test]"
    uv pip install -r requirements.txt
    ```
 
 4. **Install pre-commit hooks**
 
    ```bash
-   pip install pre-commit
+   uv pip install pre-commit
    pre-commit install
    ```
 

@@ -1,16 +1,23 @@
+from __future__ import annotations
+
 from .main import recursivenamespace
 from .main import recursivenamespace as RecursiveNamespace
 from .main import recursivenamespace as RNS
 from . import main as rns
+from .errors import GetChainKeyError, SerializationError, SetChainKeyError
 
-try:
-    from recursivenamespace._version_pdm import (  # pyright: ignore [reportMissingImports]
-        __version__,
-    )
-except ImportError:
-    from recursivenamespace._version import get_versions
+from importlib.metadata import version as _get_version
 
-    __version__ = get_versions()["version"]
-    del get_versions
+__version__: str = _get_version("RecursiveNamespaceV2")
+del _get_version
 
-__all__ = ["recursivenamespace", "RecursiveNamespace", "RNS", "rns"]
+__all__ = [
+    "recursivenamespace",
+    "RecursiveNamespace",
+    "RNS",
+    "rns",
+    "GetChainKeyError",
+    "SerializationError",
+    "SetChainKeyError",
+    "__version__",
+]

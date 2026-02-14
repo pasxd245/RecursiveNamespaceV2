@@ -1,38 +1,44 @@
+from __future__ import annotations
+
 from collections import OrderedDict
 from enum import Enum
+from functools import lru_cache
 import re
-from typing import Any, AnyStr, Dict, List, NamedTuple
+from typing import Any, Dict, List, NamedTuple
 
 
 KEY_SEP_CHAR = "."
 KEY_ARRAY = "[]"
 
 
-def escape_key(key: AnyStr, sep: str = None) -> AnyStr:
+def escape_key(key: str, sep: str | None = None) -> str:
     sep = sep or KEY_SEP_CHAR
     escape_char = rf"\\{sep}"
     return key.replace(sep, escape_char)
 
 
-def unescape_key(key: AnyStr, sep: str = None) -> AnyStr:
+def unescape_key(key: str, sep: str | None = None) -> str:
     sep = sep or KEY_SEP_CHAR
     escape_char = rf"\\{sep}"
     return key.replace(escape_char, sep)
 
 
-def split_key(key: AnyStr, sep: str = None) -> AnyStr:
+@lru_cache(maxsize=8)
+def _compile_split_pattern(sep: str) -> re.Pattern[str]:
+    return re.compile(rf"(?<!\\)\{sep}")
+
+
+def split_key(key: str, sep: str | None = None) -> list[str]:
     sep = sep or KEY_SEP_CHAR
-    s = rf"(?<!\\)\{sep}"
-    p = re.compile(s)
-    return re.split(p, key)
+    return _compile_split_pattern(sep).split(key)
 
 
-def join_key(parts: List[AnyStr], sep: str = None) -> AnyStr:
+def join_key(parts: List[str], sep: str | None = None) -> str:
     sep = sep or KEY_SEP_CHAR
     return sep.join(parts)
 
 
-class KV_Pair(NamedTuple):
+class KV_Pair(NamedTuple):  # NOSONAR
     key: str
     value: Any
 
@@ -44,16 +50,17 @@ class FlatListType(Enum):
     WITH_SMART_INDEX = 3
 
 
+# TODO(refactor): reduce cognitive complexity (~15) — recursive nested type checks
 def flatten_as_dict(
-    data,
-    sep=KEY_SEP_CHAR,
-    flat_list=False,
-    use_ordered_dict=True,
-) -> Dict:
-    out: Dict = OrderedDict() if use_ordered_dict else dict()
+    data: Dict[str, Any] | None,
+    sep: str = KEY_SEP_CHAR,
+    flat_list: bool = False,
+    use_ordered_dict: bool = True,
+) -> Dict[str, Any]:
+    out: Dict[str, Any] = OrderedDict() if use_ordered_dict else dict()
     sep_len = len(sep)
 
-    def flatten(obj, name=""):
+    def flatten(obj: Any, name: str = "") -> None:
         if isinstance(obj, dict):
             for attr in obj:
                 flatten(obj[attr], f"{name}{escape_key(attr)}{sep}")
@@ -74,12 +81,15 @@ def flatten_as_dict(
     return out
 
 
+# TODO(refactor): reduce cognitive complexity (~20) — deeply nested recursive + enum branching
 def flatten_as_list(
-    data, sep=KEY_SEP_CHAR, flat_list_type: FlatListType = FlatListType.SKIP
+    data: Dict[str, Any] | None,
+    sep: str = KEY_SEP_CHAR,
+    flat_list_type: FlatListType = FlatListType.SKIP,
 ) -> List[KV_Pair]:
-    out: List = []
-    out_keys = {}
-    out_ref_keys = {}
+    out: List[KV_Pair] = []
+    out_keys: Dict[str | None, int] = {}
+    out_ref_keys: Dict[str, str] = {}
     sep_len = len(sep)
     flat_list = flat_list_type in [
         FlatListType.WITH_INDEX,
@@ -87,7 +97,7 @@ def flatten_as_list(
         FlatListType.WITH_SMART_INDEX,
     ]
 
-    def flatten(obj, name="", ref_name=None):
+    def flatten(obj: Any, name: str = "", ref_name: str | None = None) -> None:
         if isinstance(obj, dict):
             for attr in obj:
                 key = f"{name}{escape_key(attr)}{sep}"

@@ -1,7 +1,6 @@
 [build-system]
-# Minimum requirements for the build system to execute.
-requires = ["pdm-backend", "versioneer[toml]"]
-build-backend = "pdm.backend"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
 name = 'RecursiveNamespaceV2'
@@ -23,27 +22,22 @@ homepage = 'https://github.com/pasxd245/RecursiveNamespaceV2'
 repository = 'https://github.com/pasxd245/RecursiveNamespaceV2'
 
 [project.optional-dependencies]
+dev = ['pre-commit>=3.0']
 test = ['pytest>=6.0', 'coverage>=7.0']
+docs = ['sphinx>=7.0', 'sphinx-rtd-theme>=2.0']
 
-# See the docstring in versioneer.py for instructions. Note that you must
-# re-run 'versioneer.py setup' after changing this section, and commit the
-# resulting files.
-[tool.versioneer]
-VCS = "git"
-style = "pep440"
-tag_prefix = "v"
-parentdir_prefix = "recursivenamespacev2-"
-versionfile_source = "src/recursivenamespace/_version.py"
-versionfile_build = "recursivenamespace/_version.py"
+[tool.hatch.version]
+source = "vcs"
 
-# [tool.pdm.build]
-# package-dir = "src"
+[tool.hatch.version.raw-options]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
 
-[tool.pdm.version]
-source = "call"
-getter = "versioneer:get_version"
-write_to = "recursivenamespace/_version_pdm.py"
-write_template = "__version__ = '{}'"
+[tool.hatch.build.targets.sdist]
+include = ["src/recursivenamespace"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/recursivenamespace"]
 
 [tool.ruff]
 line-length = 80
@@ -84,3 +78,19 @@ directory = "coverage_html_report"
 [tool.codespell]
 ignore-words-list = "rns"
 ignore-regex = 'https://([\w/\.])+'
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+strict_equality = true
+strict = true

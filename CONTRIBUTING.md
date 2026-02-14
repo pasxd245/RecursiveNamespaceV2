@@ -296,9 +296,16 @@ For feature requests, please describe:
 
 Releases follow semantic versioning (SemVer):
 
-- MAJOR: Breaking changes
-- MINOR: New features (backward compatible)
-- PATCH: Bug fixes (backward compatible)
+- **MAJOR**: Breaking changes
+- **MINOR**: New features (backward compatible)
+- **PATCH**: Bug fixes (backward compatible)
+
+To release a new version:
+
+1. Ensure `main` branch is green (all CI checks pass)
+2. Create a git tag: `git tag -a v1.2.3 -m "v1.2.3"`
+3. Push the tag: `git push --tags`
+4. CI automatically builds, publishes to PyPI, and creates a GitHub Release
 
 ## Getting Help
 

@@ -6,10 +6,10 @@ from .main import recursivenamespace as RNS
 from . import main as rns
 from .main import SerializationError
 
-from recursivenamespace._version import get_versions
+from importlib.metadata import version as _get_version
 
-__version__: str = get_versions()["version"]
-del get_versions
+__version__: str = _get_version("RecursiveNamespaceV2")
+del _get_version
 
 __all__ = [
     "recursivenamespace",

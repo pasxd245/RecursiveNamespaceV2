@@ -24,12 +24,14 @@ Key features:
 
 ## Installation
 
-To install **RecursiveNamespaceV2** from PyPI:
-
 ```bash
 pip install RecursiveNamespaceV2
-# or with uv
-uv pip install RecursiveNamespaceV2
+```
+
+Or with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv add RecursiveNamespaceV2
 ```
 
 For development from source:
@@ -37,8 +39,9 @@ For development from source:
 ```bash
 git clone https://github.com/pasxd245/RecursiveNamespaceV2.git
 cd RecursiveNamespaceV2
-uv venv            # create a virtual environment
-uv pip install -e ".[test]"  # install in editable mode with test dependencies
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv pip install -e ".[test]"
 ```
 
 ## Quick Start
@@ -84,6 +87,17 @@ uv run coverage run -m pytest
 # to generate html report:
 uv run coverage html
 ```
+
+## Release
+
+Versions are derived automatically from **git tags** (via [hatch-vcs](https://github.com/ofek/hatch-vcs)):
+
+```bash
+git tag -a v1.2.3 -m "v1.2.3"
+git push --tags
+```
+
+CI automatically builds, publishes to PyPI (OIDC trusted publishing), and creates a GitHub Release with auto-generated notes.
 
 ## Contributing
 

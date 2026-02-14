@@ -17,10 +17,9 @@ author = "VienPQ"
 
 # Read version dynamically from the package
 try:
-    from recursivenamespace._version import get_versions
+    from importlib.metadata import version
 
-    release = get_versions()["version"]
-    del get_versions
+    release = version("RecursiveNamespaceV2")
 except Exception:
     release = "0.0.0+unknown"
 

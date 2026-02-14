@@ -1,4 +1,5 @@
 """Converting RNS to typed dataclasses with as_schema()."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -19,11 +20,13 @@ class AppConfig:
 
 
 # Create from dynamic data (e.g., loaded from JSON/TOML)
-raw = RNS({
-    "host": "db.example.com",
-    "port": 5432,
-    "name": "mydb",
-})
+raw = RNS(
+    {
+        "host": "db.example.com",
+        "port": 5432,
+        "name": "mydb",
+    }
+)
 
 # Convert to a typed dataclass
 db = raw.as_schema(DatabaseConfig)

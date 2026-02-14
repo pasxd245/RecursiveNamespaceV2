@@ -1,4 +1,5 @@
 """Chain-key access with dot notation and array indexing."""
+
 from recursivenamespace import RNS
 
 ns = RNS({})
@@ -10,11 +11,11 @@ print("server.host:", ns.val_get("server.host"))  # localhost
 print("server.port:", ns.val_get("server.port"))  # 8080
 
 # Array operations with []
-ns.val_set("users[].#", "Alice")    # append
-ns.val_set("users[].#", "Bob")      # append
+ns.val_set("users[].#", "Alice")  # append
+ns.val_set("users[].#", "Bob")  # append
 ns.val_set("users[].#", "Charlie")  # append
 print("users:", ns.val_get("users[].0"))  # Alice
-print("last:",  ns.val_get("users[].#"))  # Charlie (# = last)
+print("last:", ns.val_get("users[].#"))  # Charlie (# = last)
 
 # Set by index
 ns.val_set("users[].1", "Robert")

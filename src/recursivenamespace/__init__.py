@@ -4,7 +4,7 @@ from .main import recursivenamespace
 from .main import recursivenamespace as RecursiveNamespace
 from .main import recursivenamespace as RNS
 from . import main as rns
-from .main import SerializationError
+from .errors import GetChainKeyError, SerializationError, SetChainKeyError
 
 from importlib.metadata import version as _get_version
 
@@ -16,6 +16,8 @@ __all__ = [
     "RecursiveNamespace",
     "RNS",
     "rns",
+    "GetChainKeyError",
     "SerializationError",
+    "SetChainKeyError",
     "__version__",
 ]

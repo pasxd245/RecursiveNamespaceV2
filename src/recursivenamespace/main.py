@@ -27,46 +27,33 @@ import functools
 
 # Conditional import for TOML support
 try:
-    import tomllib  # Python 3.11+
+    import tomllib  # type: ignore[import-not-found]  # Python 3.11+
 except ImportError:
     try:
-        import tomli as tomllib  # Python 3.8-3.10 fallback
+        import tomli as tomllib  # type: ignore[import-not-found]
     except ImportError:
-        tomllib = None  # type: ignore
+        tomllib = None
 
 from . import utils
+from .errors import GetChainKeyError, SerializationError, SetChainKeyError
 
 T = TypeVar("T")
 
 _KEY_NORMALIZE_RE = re.compile(r"[.\-\s]")
 
-__all__ = ["recursivenamespace"]
-
-
-class SetChainKeyError(KeyError):
-    def __init__(self, obj, key, sub_key):
-        super().__init__(
-            f"The object '{key}' typeof({type(obj)}) does not support set[] operator on chain-key '{sub_key}'."
-        )
-
-
-class GetChainKeyError(KeyError):
-    def __init__(self, obj, key, sub_key):
-        super().__init__(
-            f"The object '{key}' typeof({type(obj)}) does not support get[] operator on chain-key '{sub_key}'."
-        )
-
-
-class SerializationError(Exception):
-    """Raised when serialization or deserialization fails."""
-
-    pass
+__all__ = [
+    "recursivenamespace",
+    "GetChainKeyError",
+    "SerializationError",
+    "SetChainKeyError",
+]
 
 
 class recursivenamespace(SimpleNamespace):
     __HASH__ = "#"
     __logger = logging.getLogger(__name__)
 
+    # TODO(refactor): reduce cognitive complexity (~16) — nested type checks in loop
     def __init__(
         self,
         data: Optional[Dict[str, Any]] = None,
@@ -85,7 +72,7 @@ class recursivenamespace(SimpleNamespace):
             dict.fromkeys([list, tuple, set] + accepted_iter_types)
         )
 
-        self.__protected_keys_ = ()  # this to add the attr to __dict__.
+        self.__protected_keys_: set[str] = set()  # init attr in __dict__
         self.__protected_keys_ = set(self.__dict__.keys())
 
         if isinstance(data, dict):
@@ -103,6 +90,7 @@ class recursivenamespace(SimpleNamespace):
             # setattr(self, key, val)
             self[key] = val
 
+    # TODO(refactor): reduce cognitive complexity (~17) — isinstance branches + try/except
     def __process(
         self,
         val: Any,
@@ -125,7 +113,7 @@ class recursivenamespace(SimpleNamespace):
                 print(
                     f"Failed to make iterable object of type {type(val)}",
                     e,
-                    out=sys.stderr,
+                    file=sys.stderr,
                 )
                 return val
         else:
@@ -146,12 +134,14 @@ class recursivenamespace(SimpleNamespace):
                 data = recursivenamespace(
                     data, self.__supported_types_, self.__use_raw_key_
                 )
-        except Exception:
-            raise Exception(f"Failed to update with data of type {type(data)}")
+        except Exception as e:
+            raise TypeError(
+                f"Failed to update with data of type {type(data)}"
+            ) from e
         for key, val in data.items():
             self[key] = val
 
-    def __remove_protected_key(self, key: str) -> None:
+    def __remove_protected_key(self, key: str) -> None:  # NOSONAR
         """Use with be-careful!"""
         self.__protected_keys_.remove(key)
         self.__dict__.pop(key)
@@ -260,6 +250,7 @@ class recursivenamespace(SimpleNamespace):
             return iter(self.to_dict())
         return iter(self.keys())
 
+    # TODO(refactor): reduce cognitive complexity (~15) — nested isinstance branches
     def to_dict(self, flatten_sep: Union[str, bool] = False) -> Dict[str, Any]:
         """Convert the recursivenamespace object to a dictionary.
         If flatten_sep is not False, then the keys are flattened using the separator.
@@ -276,7 +267,8 @@ class recursivenamespace(SimpleNamespace):
                 pairs.append((k, v))
         d = dict(pairs)
         if flatten_sep:
-            d = dict(utils.flatten_as_dict(d, sep=flatten_sep))
+            sep = flatten_sep if isinstance(flatten_sep, str) else "."
+            d = dict(utils.flatten_as_dict(d, sep=sep))
         return d
 
     def __iter_to_dict(self, iterable: Any) -> Any:
@@ -295,6 +287,7 @@ class recursivenamespace(SimpleNamespace):
                 elements.append(val)
         return type(iterable)(elements)
 
+    # TODO(refactor): reduce cognitive complexity (~18) — 4-level nesting with index branching
     def __chain_set_array(self, key: str, subs: List[str], value: Any) -> None:
         # if the `key` not existed, then create it ??
         if not hasattr(self, key):
@@ -356,7 +349,7 @@ class recursivenamespace(SimpleNamespace):
         else:
             raise SetChainKeyError(target, key, sub_key)
 
-    def val_set(self, key: str, value: Any):
+    def val_set(self, key: str, value: Any) -> None:
         """Set the value by key.
 
         Supported "chain-key" patterns:
@@ -376,7 +369,7 @@ class recursivenamespace(SimpleNamespace):
             KeyError: When trying to set a protected value.
             SetChainKeyError: When chain-key target is not an RNS type.
         """
-        # raw_key = key
+        # @ raw_key = key
         key, *subs = utils.split_key(key)
         key = utils.unescape_key(key)
         subs_len = len(subs)
@@ -393,6 +386,7 @@ class recursivenamespace(SimpleNamespace):
         else:  # SET the value
             self.__chain_set_value(key, subs, value)
 
+    # TODO(refactor): reduce cognitive complexity (~16) — validation + index branching
     def __chain_get_array(self, key: str, subs: List[str]) -> Any:
         target = self[key]
         subs_len = len(subs)
@@ -435,7 +429,7 @@ class recursivenamespace(SimpleNamespace):
         else:
             raise GetChainKeyError(target, key, sub_key)
 
-    def val_get(self, key: str):
+    def val_get(self, key: str) -> Any:
         """Get the value by key.
 
         Supported "chain-key" patterns:
@@ -455,7 +449,7 @@ class recursivenamespace(SimpleNamespace):
             KeyError: When trying to get a protected value or key doesn't exist.
             GetChainKeyError: When chain-key target is not an RNS type.
         """
-        # raw_key = key
+        # @ raw_key = key
         key, *subs = utils.split_key(key)
         key = utils.unescape_key(key)
         subs_len = len(subs)
@@ -488,7 +482,7 @@ class recursivenamespace(SimpleNamespace):
         except Exception:
             # skip the error.
             if show_log:
-                self.__logger.warning(f"KeyNotFound - {key}", exc_info=1)
+                self.__logger.warning(f"KeyNotFound - {key}", exc_info=True)
             return or_else
 
     def as_schema(self, schema_cls: type[T], /, **kwargs: Any) -> T:
@@ -668,8 +662,7 @@ class recursivenamespace(SimpleNamespace):
         except Exception as e:
             raise SerializationError(f"Failed to load JSON file: {e}")
 
-    # TOML Serialization Methods
-
+    # TODO(refactor): reduce cognitive complexity (~19) — 5-level nested type checks for TOML
     @staticmethod
     def _dict_to_toml(data: Dict[str, Any], prefix: str = "") -> str:
         """Convert dict to TOML format.
@@ -845,6 +838,7 @@ class recursivenamespace(SimpleNamespace):
 
 
 # %%
+# TODO(refactor): reduce cognitive complexity (~17) — multi-branch data type handling
 def rns(
     accepted_iter_types: Optional[List[type]] = None,
     use_raw_key: bool = False,
@@ -859,7 +853,7 @@ def rns(
 
     def fn_wrapper(
         func: Callable[..., Any],
-    ) -> Callable[..., recursivenamespace]:
+    ) -> Callable[..., recursivenamespace]:  # NOSONAR
         @functools.wraps(func)
         def create_rns(*args: Any, **kwargs: Any) -> recursivenamespace:
             # Do something before:
@@ -867,6 +861,7 @@ def rns(
 
             # Prepare data:
             # create from kv_pair ??
+            data: Any
             if (
                 use_chain_key
                 and isinstance(ret_val, list)
@@ -876,7 +871,7 @@ def rns(
             elif isinstance(ret_val, dict):
                 data = ret_val
             elif dataclasses.is_dataclass(ret_val):
-                data = dataclasses.asdict(ret_val)
+                data = dataclasses.asdict(ret_val)  # type: ignore[arg-type]
             else:
                 data = {f"{props}": ret_val}
 

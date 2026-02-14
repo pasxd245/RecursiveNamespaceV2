@@ -1,4 +1,5 @@
 """Using accepted_iter_types to preserve custom iterables."""
+
 from recursivenamespace import RNS
 
 # By default, tuples and sets are recursively processed

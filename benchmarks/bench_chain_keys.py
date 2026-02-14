@@ -2,6 +2,7 @@
 
 Run: python benchmarks/bench_chain_keys.py
 """
+
 from __future__ import annotations
 
 import timeit
@@ -34,9 +35,7 @@ def bench_val_get(n: int = 10_000) -> float:
 
 def bench_val_set(n: int = 10_000) -> float:
     ns = RNS({})
-    t = timeit.timeit(
-        lambda: ns.val_set("a.b.c.d.e", "value"), number=n
-    )
+    t = timeit.timeit(lambda: ns.val_set("a.b.c.d.e", "value"), number=n)
     return t
 
 

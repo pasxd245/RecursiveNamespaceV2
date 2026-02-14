@@ -1,18 +1,21 @@
 """Flatten nested structures and reconstruct from flat dicts."""
+
 from pprint import pprint
 from recursivenamespace import RNS
 
-data = RNS({
-    "model": {
-        "name": "bert-base",
-        "layers": {"hidden": 768, "attention": 12},
-    },
-    "training": {
-        "lr": 0.001,
-        "batch_size": 32,
-        "epochs": 10,
-    },
-})
+data = RNS(
+    {
+        "model": {
+            "name": "bert-base",
+            "layers": {"hidden": 768, "attention": 12},
+        },
+        "training": {
+            "lr": 0.001,
+            "batch_size": 32,
+            "epochs": 10,
+        },
+    }
+)
 
 # Flatten with dot separator
 flat_dot = data.to_dict(flatten_sep=".")

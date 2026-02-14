@@ -1,4 +1,5 @@
 """Handling API responses with RNS."""
+
 import json
 from recursivenamespace import RNS
 

@@ -1,4 +1,5 @@
 """Using the @rns.rns() decorator to wrap function returns."""
+
 from recursivenamespace import rns
 from recursivenamespace.utils import KV_Pair
 

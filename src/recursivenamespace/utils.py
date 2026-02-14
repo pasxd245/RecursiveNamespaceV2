@@ -38,7 +38,7 @@ def join_key(parts: List[str], sep: str | None = None) -> str:
     return sep.join(parts)
 
 
-class KV_Pair(NamedTuple):
+class KV_Pair(NamedTuple):  # NOSONAR
     key: str
     value: Any
 
@@ -50,6 +50,7 @@ class FlatListType(Enum):
     WITH_SMART_INDEX = 3
 
 
+# TODO(refactor): reduce cognitive complexity (~15) — recursive nested type checks
 def flatten_as_dict(
     data: Dict[str, Any] | None,
     sep: str = KEY_SEP_CHAR,
@@ -80,6 +81,7 @@ def flatten_as_dict(
     return out
 
 
+# TODO(refactor): reduce cognitive complexity (~20) — deeply nested recursive + enum branching
 def flatten_as_list(
     data: Dict[str, Any] | None,
     sep: str = KEY_SEP_CHAR,

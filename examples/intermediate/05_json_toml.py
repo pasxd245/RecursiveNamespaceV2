@@ -1,12 +1,15 @@
 """JSON and TOML serialization round-trips."""
+
 from recursivenamespace import RNS
 
 # Build a configuration namespace
-config = RNS({
-    "app": {"name": "MyApp", "version": "1.0.0"},
-    "database": {"host": "localhost", "port": 5432},
-    "features": ["auth", "api", "logging"],
-})
+config = RNS(
+    {
+        "app": {"name": "MyApp", "version": "1.0.0"},
+        "database": {"host": "localhost", "port": 5432},
+        "features": ["auth", "api", "logging"],
+    }
+)
 
 # ── JSON ────────────────────────────────────────────────────────
 json_str = config.to_json(indent=2, sort_keys=True)

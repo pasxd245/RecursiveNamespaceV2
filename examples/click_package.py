@@ -1,5 +1,5 @@
 """
-Click is a usefull package for developing CLIs. Nevertheless, use strings
+Click is a useful package for developing CLIs. Nevertheless, use strings
 as dictionary keys were not much appealing to me.
 Using the RecursiveNamespace package, now the click is much sexier to me.
 

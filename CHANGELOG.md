@@ -49,7 +49,7 @@ Feat: The first enhance-version([0673012](https://github.com/pasxd245/RecursiveN
 - Minor update([d7dc0fc](https://github.com/pasxd245/RecursiveNamespaceV2/commit/d7dc0fc5b12f8e957fea89cb9d2e7cd1faf60d96))
 - This is renamed([c029912](https://github.com/pasxd245/RecursiveNamespaceV2/commit/c029912d2f40a7ad6dfeec4ee4bdad1c1177659c))
 - Final touch([0005e18](https://github.com/pasxd245/RecursiveNamespaceV2/commit/0005e18a96fe92237672d7ac0d652eef76bb22b1))
-- Exapmles updated([1a27b07](https://github.com/pasxd245/RecursiveNamespaceV2/commit/1a27b0775e11ecf9585be5dc49d308087601428d))
+- Examples updated([1a27b07](https://github.com/pasxd245/RecursiveNamespaceV2/commit/1a27b0775e11ecf9585be5dc49d308087601428d))
 - Package name updated to avoid Capital letters([3e55188](https://github.com/pasxd245/RecursiveNamespaceV2/commit/3e55188ed652fafe900714da486c55377f04fe89))
 - Structure change([fb642e4](https://github.com/pasxd245/RecursiveNamespaceV2/commit/fb642e4880693d70596dd1934ef90350af843c28))
 - Structure change([0bf341e](https://github.com/pasxd245/RecursiveNamespaceV2/commit/0bf341e8bf5033a63a7edb5f28f1b59b34855b12))
@@ -71,4 +71,3 @@ Feat: The first enhance-version([0673012](https://github.com/pasxd245/RecursiveN
 ### Testing
 
 - Tests updated to reflect latest changes([59a0ff3](https://github.com/pasxd245/RecursiveNamespaceV2/commit/59a0ff3a0ef8f130c10de9314a0daec28c4bdd08))
-

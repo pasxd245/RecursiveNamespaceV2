@@ -1,5 +1,10 @@
 # Claude Skills for RecursiveNamespaceV2
 
+> **Shared knowledge base**: [AGENTS.md](../AGENTS.md) defines pair
+> programming workflows, decision frameworks, and the `.agents/`
+> directory structure. Load it first for full context before starting
+> any task.
+
 ## Purpose
 
 RecursiveNamespaceV2 is a pure-Python library that extends Python's SimpleNamespace to support recursive/nested data access with both attribute and dict styles. Your work should preserve its core promise: intuitive access to deeply nested structures, robust chain-key operations, and predictable conversion between namespaces and dictionaries.

@@ -64,13 +64,44 @@ print(rn.address.city)  # Anytown
 print(rn["friends"][1])  # Tom
 
 # Chain-key access
-rn.val_set("address.zip", "12345")
-print(rn.val_get("address.zip"))  # 12345
+rn._.val_set("address.zip", "12345")
+print(rn._.val_get("address.zip"))  # 12345
 
 # Convert back to dict
-data2 = rn.to_dict()
+data2 = rn._.to_dict()
 print(data2["address"]["city"])  # Anytown
 ```
+
+## Accessing methods when data keys collide
+
+User data often contains keys like `"items"`, `"keys"`, `"update"`, or
+`"to_dict"`. To stop them from shadowing the library's methods, those
+names are reserved and `RNS({"items": [...]})` raises `KeyError`.
+
+Starting in this release, every public method is also reachable through
+a `obj._` proxy. The proxy is the long-term API; the direct form
+(`obj.to_dict()`, `obj.items()`, …) still works but emits a
+`DeprecationWarning` and will be removed in a future major release. Once
+direct methods are gone, the names are freed for user data.
+
+```python
+rn = RNS({"name": "John"})
+
+# Preferred (silent):
+rn._.to_dict()
+rn._.val_set("address.zip", "12345")
+
+# Also works — class-level, useful in tests and tooling:
+RNS._.to_dict(rn)
+
+# Legacy (works but warns):
+rn.to_dict()  # DeprecationWarning
+```
+
+See [`docs/guides/method-proxy.rst`](docs/guides/method-proxy.rst) for
+the full migration plan and
+[`examples/advanced/13_method_proxy.py`](examples/advanced/13_method_proxy.py)
+for a runnable example.
 
 ## Examples
 

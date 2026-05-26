@@ -54,6 +54,7 @@ Contents
    getting_started
    guides/chain-keys
    guides/array-indexing
+   guides/method-proxy
 
 .. toctree::
    :maxdepth: 2

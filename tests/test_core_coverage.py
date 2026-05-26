@@ -8,6 +8,7 @@ errors, array errors, get_or_else, as_schema, and rns decorator.
 from __future__ import annotations
 
 import dataclasses
+import warnings
 
 import pytest
 
@@ -111,17 +112,75 @@ class TestProtectedKeys:
     def test_setitem_protected(self):
         ns = RNS({"a": 1})
         with pytest.raises(KeyError, match="protected"):
-            ns["_recursivenamespace__key_"] = "bad"
+            ns["_key_"] = "bad"
 
     def test_getitem_protected(self):
         ns = RNS({"a": 1})
         with pytest.raises(KeyError, match="protected"):
-            _ = ns["_recursivenamespace__key_"]
+            _ = ns["_key_"]
 
     def test_pop_protected(self):
         ns = RNS({"a": 1})
         with pytest.raises(KeyError, match="protected"):
-            ns.pop("_recursivenamespace__key_")
+            ns.pop("_key_")
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "to_dict",
+            "items",
+            "keys",
+            "values",
+            "update",
+            "pop",
+            "copy",
+            "deepcopy",
+            "val_set",
+            "val_get",
+            "get_or_else",
+            "set_key",
+            "get_key",
+            "as_schema",
+            "to_json",
+            "from_json",
+            "to_toml",
+            "from_toml",
+            "temporary",
+            "overlay",
+        ],
+    )
+    def test_init_data_collides_with_method(self, name):
+        # Constructing from a dict whose key matches a public method
+        # must raise rather than silently shadowing the method.
+        with pytest.raises(KeyError, match="protected"):
+            RNS({name: "x"})
+
+    def test_init_kwargs_collides_with_method(self):
+        with pytest.raises(KeyError, match="protected"):
+            RNS(items=[1, 2, 3])
+
+    def test_setitem_method_name_protected(self):
+        ns = RNS({"a": 1})
+        with pytest.raises(KeyError, match="protected"):
+            ns["to_dict"] = "bad"
+
+    def test_val_set_method_name_protected(self):
+        ns = RNS({"a": 1})
+        with pytest.raises(KeyError, match="protected"):
+            ns.val_set("update", "bad")
+
+    def test_methods_remain_callable_after_normal_init(self):
+        # Sanity: the protection must not break ordinary usage.
+        ns = RNS({"a": 1, "b": {"c": 2}})
+        assert ns.to_dict() == {"a": 1, "b": {"c": 2}}
+        assert ns.keys() == ["a", "b"]
+        assert "a" in dict(ns.items())
+
+    def test_nested_dict_method_collision_also_protected(self):
+        # Nested dicts are recursively wrapped, so the protection must
+        # propagate.
+        with pytest.raises(KeyError, match="protected"):
+            RNS({"outer": {"to_dict": "x"}})
 
 
 # ── Copy / Deepcopy ────────────────────────────────────────────
@@ -304,6 +363,43 @@ class TestRnsDecorator:
         assert result.x == 10
         assert result.y == "world"
 
+    def test_dict_return_with_method_collision_protected(self):
+        @rns.rns()
+        def create():
+            return {"to_dict": "x", "name": "foo"}
+
+        with pytest.raises(KeyError, match="protected"):
+            create()
+
+    def test_non_dict_return_with_props_collision_protected(self):
+        @rns.rns(props="items")
+        def create():
+            return [1, 2, 3]
+
+        with pytest.raises(KeyError, match="protected"):
+            create()
+
+    def test_chain_key_dict_return_collision_protected(self):
+        @rns.rns(use_chain_key=True)
+        def create():
+            return {"to_dict": "x"}
+
+        with pytest.raises(KeyError, match="protected"):
+            create()
+
+    def test_dataclass_field_collision_protected(self):
+        @dataclasses.dataclass
+        class Bad:
+            items: list = dataclasses.field(default_factory=list)
+            name: str = "foo"
+
+        @rns.rns()
+        def create():
+            return Bad(items=[1, 2, 3], name="foo")
+
+        with pytest.raises(KeyError, match="protected"):
+            create()
+
 
 # ── Serialization error paths ───────────────────────────────────
 
@@ -325,3 +421,164 @@ class TestSerializationErrors:
         ns.__dict__["custom"] = object()
         toml_str = ns.to_toml()
         assert "not supported" in toml_str
+
+
+# ── Method proxy (obj._.method) ─────────────────────────────────
+
+
+class TestMethodProxy:
+    """Phase 1 of the method-proxy migration.
+
+    Public methods are reachable via three equivalent shapes:
+      - ``obj._.method(...)``     — bound proxy (preferred)
+      - ``RNS._.method(obj, ...)`` — class-level static container
+      - ``obj.method(...)``       — legacy, emits DeprecationWarning
+    All three converge on ``_StaticImpl.method``.
+    """
+
+    # ---- ``obj._`` returns a fresh bound proxy ----
+
+    def test_obj_underscore_parity_with_direct_call(self):
+        ns = RNS({"a": 1, "b": {"c": 2}})
+        # ``ns.to_dict()`` warns; the proxy form is silent.
+        assert ns._.to_dict() == {"a": 1, "b": {"c": 2}}
+        assert ns._.keys() == ["a", "b"]
+        assert ns._.values() == [1, ns.b]
+
+    def test_proxy_val_get_chain_key(self):
+        ns = RNS({"a": {"b": {"c": 42}}})
+        assert ns._.val_get("a.b.c") == 42
+
+    def test_proxy_val_set_chain_key(self):
+        ns = RNS({})
+        ns._.val_set("a.b.c", 7)
+        assert ns._.val_get("a.b.c") == 7
+
+    def test_proxy_repr_is_sensible(self):
+        ns = RNS({"a": 1})
+        assert "RNS method proxy" in repr(ns._)
+
+    def test_proxy_dir_lists_public_methods(self):
+        ns = RNS({"a": 1})
+        names = set(dir(ns._))
+        # Some representative public methods must be discoverable.
+        for n in (
+            "to_dict",
+            "items",
+            "keys",
+            "values",
+            "val_get",
+            "val_set",
+            "update",
+            "copy",
+            "deepcopy",
+        ):
+            assert n in names
+        # No dunders / privates leak through.
+        for n in names:
+            assert not n.startswith("_")
+
+    # ---- ``RNS._`` (class access) returns the static container ----
+
+    def test_class_underscore_returns_static_impl(self):
+        ns = RNS({"a": 1, "b": 2})
+        from recursivenamespace.main import _StaticImpl
+
+        assert RNS._ is _StaticImpl
+        assert RNS._.to_dict(ns) == {"a": 1, "b": 2}
+        assert RNS._.items(ns) == [("a", 1), ("b", 2)]
+
+    # ---- ``_`` itself is protected from user-data shadowing ----
+
+    def test_init_data_collides_with_underscore_protected(self):
+        with pytest.raises(KeyError, match="protected"):
+            RNS({"_": "bad"})
+
+    def test_setitem_underscore_protected(self):
+        ns = RNS({"a": 1})
+        with pytest.raises(KeyError, match="protected"):
+            ns["_"] = "bad"
+
+    def test_val_set_underscore_protected(self):
+        ns = RNS({"a": 1})
+        with pytest.raises(KeyError, match="protected"):
+            ns._.val_set("_", "bad")
+
+    def test_underscore_assignment_blocked_by_data_descriptor(self):
+        ns = RNS({"a": 1})
+        with pytest.raises(AttributeError, match="reserved"):
+            ns._ = "bad"
+
+    def test_underscore_deletion_blocked_by_data_descriptor(self):
+        ns = RNS({"a": 1})
+        with pytest.raises(AttributeError, match="reserved"):
+            del ns._
+
+    def test_proxy_setattr_read_only(self):
+        ns = RNS({"a": 1})
+        with pytest.raises(AttributeError, match="read-only"):
+            ns._.something = "bad"
+
+    # ---- ``_`` is not data ----
+
+    def test_underscore_not_in_to_dict(self):
+        ns = RNS({"a": 1})
+        assert "_" not in ns._.to_dict()
+
+    def test_underscore_not_in_keys(self):
+        ns = RNS({"a": 1})
+        assert "_" not in ns._.keys()
+
+    def test_underscore_not_in_contains(self):
+        ns = RNS({"a": 1})
+        assert "_" not in ns
+
+    # ---- Deprecation warning ----
+
+    def test_direct_call_emits_deprecation(self):
+        ns = RNS({"a": 1})
+        with pytest.warns(DeprecationWarning, match="to_dict.*deprecated"):
+            ns.to_dict()
+
+    def test_proxy_call_does_not_emit_deprecation(self):
+        ns = RNS({"a": 1})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            # Must not raise — proxy path is the new recommended form.
+            assert ns._.to_dict() == {"a": 1}
+
+    def test_static_call_does_not_emit_deprecation(self):
+        ns = RNS({"a": 1})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            assert RNS._.to_dict(ns) == {"a": 1}
+
+    # ---- Pickle, copy, nested behavior ----
+
+    def test_pickle_roundtrip_proxy_still_works(self):
+        import pickle
+
+        ns = RNS({"a": 1, "b": {"c": 2}})
+        loaded = pickle.loads(pickle.dumps(ns))
+        assert loaded._.to_dict() == {"a": 1, "b": {"c": 2}}
+
+    def test_nested_rns_has_own_proxy(self):
+        ns = RNS({"outer": {"inner": 1}})
+        assert ns.outer._.to_dict() == {"inner": 1}
+        # Each access yields a fresh proxy bound to its owner.
+        assert ns._ is not ns.outer._
+
+    def test_classmethod_factories_not_on_proxy(self):
+        # Factories live on the class (RNS.from_json), not on the
+        # instance proxy — they create instances, they don't act on one.
+        ns = RNS({"a": 1})
+        with pytest.raises(AttributeError):
+            _ = ns._.from_json
+
+    def test_internal_recursion_does_not_emit_deprecation(self):
+        # to_dict recurses on nested RNS values; the recursion goes
+        # through _StaticImpl directly so no warning should fire.
+        ns = RNS({"a": {"b": {"c": 1}}})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            assert ns._.to_dict() == {"a": {"b": {"c": 1}}}

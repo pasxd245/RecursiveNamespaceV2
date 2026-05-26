@@ -5,10 +5,15 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import functools
 import json
 import logging
 import re
 import sys
+import warnings
+from copy import deepcopy
+from pathlib import Path
+from types import SimpleNamespace
 from typing import (
     Any,
     Callable,
@@ -20,10 +25,6 @@ from typing import (
     TypeVar,
     Union,
 )
-from copy import deepcopy
-from types import SimpleNamespace
-from pathlib import Path
-import functools
 
 # Conditional import for TOML support
 try:
@@ -49,11 +50,46 @@ __all__ = [
 ]
 
 
+# Phase 1 of the method-proxy migration: public methods will eventually
+# live exclusively under ``obj._.<method>(...)``. For now the class still
+# exposes them directly as shims that warn and delegate to _StaticImpl,
+# the single source of truth.
+_DEPRECATION_TEMPLATE = (
+    "Calling '{name}' directly on an RNS instance is deprecated and "
+    "will be removed in a future major release. Use 'obj._.{name}(...)' "
+    "instead."
+)
+
+_SHADOW_TEMPLATE = (
+    "Data field '{name}' shadows the deprecated method '{name}'. The "
+    "value is stored and reachable via obj['{name}'] / obj.{name}; "
+    "call the method via 'obj._.{name}(...)'."
+)
+
+
+def _deprecated(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Mark a class-level shim as deprecated in favor of ``obj._.method(...)``.
+
+    Emits DeprecationWarning at call time using the wrapped function's
+    name, then forwards. Remove these decorators (and the shims they
+    decorate) in Phase 3 of the migration.
+    """
+    msg = _DEPRECATION_TEMPLATE.format(name=func.__name__)
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 class recursivenamespace(SimpleNamespace):
     __HASH__ = "#"
-    __logger = logging.getLogger(__name__)
+    _logger_ = logging.getLogger(__name__)
+    # ``_`` is bound to a data descriptor after the class is defined,
+    # see ``recursivenamespace._ = _Descriptor()`` below.
 
-    # TODO(refactor): reduce cognitive complexity (~16) — nested type checks in loop
     def __init__(
         self,
         data: Optional[Dict[str, Any]] = None,
@@ -66,32 +102,32 @@ class recursivenamespace(SimpleNamespace):
         if accepted_iter_types is None:
             accepted_iter_types = []
 
-        self.__key_ = ""
-        self.__use_raw_key_ = use_raw_key
-        self.__supported_types_ = list(
+        self._key_ = ""
+        self._use__raw_key_ = use_raw_key
+        self._supported__types_ = list(
             dict.fromkeys([list, tuple, set] + accepted_iter_types)
         )
 
-        self.__protected_keys_: set[str] = set()  # init attr in __dict__
-        self.__protected_keys_ = set(self.__dict__.keys())
+        self._protected__keys_: set[str] = set()  # init attr in __dict__
+        self._protected__keys_ = (
+            set(self.__dict__.keys()) | _HARD_PROTECTED_CLASS_ATTRS
+        )
 
         if isinstance(data, dict):
             kwargs.update(data)
 
         for key, val in kwargs.items():
-            key = self.__re(key)
+            key = self._re_(key)
             if isinstance(val, dict):
                 val = recursivenamespace(val, accepted_iter_types, use_raw_key)
-                val.set_key(key)
+                _StaticImpl.set_key(val, key)
             elif isinstance(val, recursivenamespace):
-                val.set_key(key)
+                _StaticImpl.set_key(val, key)
             else:
-                val = self.__process(val)
-            # setattr(self, key, val)
+                val = self._process_(val)
             self[key] = val
 
-    # TODO(refactor): reduce cognitive complexity (~17) — isinstance branches + try/except
-    def __process(
+    def _process_(
         self,
         val: Any,
         accepted_iter_types: Optional[List[type]] = None,
@@ -101,14 +137,12 @@ class recursivenamespace(SimpleNamespace):
             return recursivenamespace(val, accepted_iter_types, use_raw_key)
         elif isinstance(val, str):
             return val
-        elif hasattr(val, "__iter__") and type(val) in self.__supported_types_:
+        elif hasattr(val, "__iter__") and type(val) in self._supported__types_:
             lst = [
-                self.__process(v, accepted_iter_types, use_raw_key) for v in val
+                self._process_(v, accepted_iter_types, use_raw_key) for v in val
             ]
             try:
-                return type(val)(
-                    lst
-                )  # the type is assumed to support list-to-type conversion
+                return type(val)(lst)
             except Exception as e:
                 print(
                     f"Failed to make iterable object of type {type(val)}",
@@ -119,32 +153,15 @@ class recursivenamespace(SimpleNamespace):
         else:
             return val
 
-    def __re(self, key: str) -> str:
-        return key if self.__use_raw_key_ else _KEY_NORMALIZE_RE.sub("_", key)
+    def _re_(self, key: str) -> str:
+        return key if self._use__raw_key_ else _KEY_NORMALIZE_RE.sub("_", key)
 
-    def set_key(self, key: str) -> None:
-        self.__key_ = self.__re(key)
-
-    def get_key(self) -> str:
-        return self.__key_
-
-    def update(self, data: Union[Dict[str, Any], "recursivenamespace"]) -> None:
-        try:
-            if not isinstance(data, recursivenamespace):
-                data = recursivenamespace(
-                    data, self.__supported_types_, self.__use_raw_key_
-                )
-        except Exception as e:
-            raise TypeError(
-                f"Failed to update with data of type {type(data)}"
-            ) from e
-        for key, val in data.items():
-            self[key] = val
-
-    def __remove_protected_key(self, key: str) -> None:  # NOSONAR
+    def _remove_protected_key_(self, key: str) -> None:  # NOSONAR
         """Use with be-careful!"""
-        self.__protected_keys_.remove(key)
+        self._protected__keys_.remove(key)
         self.__dict__.pop(key)
+
+    # ── Dunders ───────────────────────────────────────────────────
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, recursivenamespace):
@@ -155,43 +172,52 @@ class recursivenamespace(SimpleNamespace):
 
     def __repr__(self) -> str:
         s = ""
-        for k, v in self.items():
+        for k, v in _StaticImpl.items(self):
             s += f"{k}={v}, "
         if len(s) > 0:
-            s = s[:-2]  # remove the last ','
-        s = f"RNS({s})"
-        return s
+            s = s[:-2]
+        return f"RNS({s})"
 
     def __str__(self) -> str:
         return self.__repr__()
 
     def __len__(self) -> int:
-        return len(self.__dict__) - len(self.__protected_keys_)
+        return sum(1 for k in self.__dict__ if k not in self._protected__keys_)
 
     def __delattr__(self, key: str) -> None:
-        key = self.__re(key)
-        if key not in self.__protected_keys_:
-            # delattr(self, key)
-            del self.__dict__[key]
+        key = self._re_(key)
+        if key in self._protected__keys_:
+            raise AttributeError(
+                f"The key '{key}' is protected — reserved method proxy"
+                if key == "_"
+                else f"The key '{key}' is protected."
+            )
+        del self.__dict__[key]
 
     def __setitem__(self, key: str, value: Any) -> None:
-        key = self.__re(key)
-        if key in self.__protected_keys_:
+        key = self._re_(key)
+        if key in self._protected__keys_:
             raise KeyError(f"The key '{key}' is protected.")
+        if key in _DEPRECATED_PUBLIC_METHODS:
+            warnings.warn(
+                _SHADOW_TEMPLATE.format(name=key),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         setattr(self, key, value)
 
     def __getitem__(self, key: str) -> Any:
-        key = self.__re(key)
-        if key in self.__protected_keys_:
+        key = self._re_(key)
+        if key in self._protected__keys_:
             raise KeyError(f"The key '{key}' is protected.")
         return getattr(self, key)
 
     def __delitem__(self, key: str) -> None:
-        key = self.__re(key)
+        key = self._re_(key)
         delattr(self, key)
 
     def __contains__(self, key: str) -> bool:
-        key = self.__re(key)
+        key = self._re_(key)
         return key in self.__dict__
 
     def __copy__(self) -> "recursivenamespace":
@@ -208,189 +234,98 @@ class recursivenamespace(SimpleNamespace):
             setattr(result, k, deepcopy(v, memo))
         return result
 
-    def copy(self) -> "recursivenamespace":
-        return self.__copy__()
-
-    def deepcopy(self) -> "recursivenamespace":
-        memo: Dict[int, Any] = {}
-        return self.__deepcopy__(memo)
-
-    def pop(self, key: str, default: Optional[T] = None) -> Union[Any, T]:
-        key = self.__re(key)
-        if key in self.__protected_keys_:
-            raise KeyError(f"The key '{key}' is protected.")
-        if key in self.__dict__:
-            val = self.__dict__[key]
-            del self.__dict__[key]
-            return val
-        else:
-            return default
-
-    def items(self) -> List[tuple[str, Any]]:
-        return [
-            (k, v)
-            for k, v in self.__dict__.items()
-            if k not in self.__protected_keys_
-        ]
-
-    def keys(self) -> List[str]:
-        return [
-            k for k in self.__dict__.keys() if k not in self.__protected_keys_
-        ]
-
-    def values(self) -> List[Any]:
-        return [
-            v
-            for k, v in self.__dict__.items()
-            if k not in self.__protected_keys_
-        ]
-
     def __iter__(self) -> Iterator[str]:
         if sys._getframe(1).f_code.co_name == "dict":
-            return iter(self.to_dict())
-        return iter(self.keys())
+            return iter(_StaticImpl.to_dict(self))
+        return iter(_StaticImpl.keys(self))
 
-    # TODO(refactor): reduce cognitive complexity (~15) — nested isinstance branches
-    def to_dict(self, flatten_sep: Union[str, bool] = False) -> Dict[str, Any]:
-        """Convert the recursivenamespace object to a dictionary.
-        If flatten_sep is not False, then the keys are flattened using the separator.
-        """
-        pairs = []
-        for k, v in self.items():
-            if isinstance(v, recursivenamespace):
-                pairs.append((k, v.to_dict()))
-            elif isinstance(v, dict):
-                pairs.append((k, v))
-            elif hasattr(v, "__iter__") and type(v) in self.__supported_types_:
-                pairs.append((k, self.__iter_to_dict(v)))
-            else:
-                pairs.append((k, v))
-        d = dict(pairs)
-        if flatten_sep:
-            sep = flatten_sep if isinstance(flatten_sep, str) else "."
-            d = dict(utils.flatten_as_dict(d, sep=sep))
-        return d
+    # ── Private chain-key helpers ────────────────────────────────
 
-    def __iter_to_dict(self, iterable: Any) -> Any:
+    def _iter_to_dict_(self, iterable: Any) -> Any:
         elements = []
         for val in iterable:
             if isinstance(val, recursivenamespace):
-                elements.append(val.to_dict())
+                elements.append(_StaticImpl.to_dict(val))
             elif isinstance(val, dict):
                 elements.append(val)
             elif (
                 hasattr(val, "__iter__")
-                and type(val) in self.__supported_types_
+                and type(val) in self._supported__types_
             ):
-                elements.append(self.__iter_to_dict(val))
+                elements.append(self._iter_to_dict_(val))
             else:
                 elements.append(val)
         return type(iterable)(elements)
 
-    # TODO(refactor): reduce cognitive complexity (~18) — 4-level nesting with index branching
-    def __chain_set_array(self, key: str, subs: List[str], value: Any) -> None:
-        # if the `key` not existed, then create it ??
+    def _chain_set_array_(self, key: str, subs: List[str], value: Any) -> None:
+        target = self._get_or_create_list_target_(key)
+        if not subs:
+            raise KeyError(
+                f"Invalid array key '{key}'. Required the 'index' as well, "
+                f"e.g.: key[].#"
+            )
+        head, *rest = subs
+        if head == self.__HASH__:
+            self._array_append_(target, rest, value)
+        else:
+            self._array_set_at_(target, key, int(head), rest, value)
+
+    def _get_or_create_list_target_(self, key: str) -> List[Any]:
         if not hasattr(self, key):
             self[key] = []
         target = self[key]
-        subs_len = len(subs)
-        # validate:
         if not isinstance(target, list):
             raise KeyError(
-                f"Invalid array key '{key}'. It is required a list, but got {type(target)}"
+                f"Invalid array key '{key}'. It is required a list, but "
+                f"got {type(target)}"
             )
-        if subs_len == 0:
-            raise KeyError(
-                f"Invalid array key '{key}'. Required the 'index' as well, e.g.: key[].#"
-            )
-        # get the `index`:
-        index = None if subs[0] == self.__HASH__ else int(subs[0])
-        # remove the `index` from sub-key:
-        subs = subs[1:]
-        subs_len -= 1
+        return target
 
-        if index is None:  # if APPEND the value ??
-            if subs_len == 0:
-                # 1) if append the value to the target array
-                target.append(value)
-            else:
-                # 2) if chain-append the value to the target array,
-                # then create a "new-item" and set the value for sub-key:
-                new_item = recursivenamespace(
-                    None, self.__supported_types_, self.__use_raw_key_
-                )
-                sub_key = utils.join_key(subs)
-                new_item.val_set(sub_key, value)
-                target.append(new_item)
-        else:  # if SET the value ??
-            if subs_len == 0:
-                # 1) if set the value to the target array at "index"
-                target[index] = value
-            else:
-                # 2) if chain-set the value to the target array at "index",
-                # then get the value at "index" and set the value for sub-key:
-                target = target[index]
-                sub_key = utils.join_key(subs)
-                if isinstance(target, recursivenamespace):
-                    target.val_set(sub_key, value)
-                else:
-                    raise SetChainKeyError(target, f"{key}[{index}]", sub_key)
+    def _array_append_(
+        self, target: List[Any], sub_keys: List[str], value: Any
+    ) -> None:
+        if not sub_keys:
+            target.append(value)
+            return
+        new_item = recursivenamespace(
+            None, self._supported__types_, self._use__raw_key_
+        )
+        _StaticImpl.val_set(new_item, utils.join_key(sub_keys), value)
+        target.append(new_item)
 
-    def __chain_set_value(self, key: str, subs: List[str], value: Any) -> None:
-        # if the `key` not existed, then create it ??
+    def _array_set_at_(
+        self,
+        target: List[Any],
+        key: str,
+        index: int,
+        sub_keys: List[str],
+        value: Any,
+    ) -> None:
+        if not sub_keys:
+            target[index] = value
+            return
+        child = target[index]
+        sub_key = utils.join_key(sub_keys)
+        if isinstance(child, recursivenamespace):
+            _StaticImpl.val_set(child, sub_key, value)
+        else:
+            raise SetChainKeyError(child, f"{key}[{index}]", sub_key)
+
+    def _chain_set_value_(self, key: str, subs: List[str], value: Any) -> None:
         if not hasattr(self, key):
             self[key] = recursivenamespace(
-                None, self.__supported_types_, self.__use_raw_key_
+                None, self._supported__types_, self._use__raw_key_
             )
         target = self[key]
         sub_key = utils.join_key(subs)
         if isinstance(target, recursivenamespace):
-            target.val_set(sub_key, value)
+            _StaticImpl.val_set(target, sub_key, value)
         else:
             raise SetChainKeyError(target, key, sub_key)
 
-    def val_set(self, key: str, value: Any) -> None:
-        """Set the value by key.
-
-        Supported "chain-key" patterns:
-
-        - ``a.b.c`` -- set value to the item "c"
-        - ``a.b.c[].<i>`` -- set value at index i of array "c"
-        - ``a.b.c[].#`` -- append value to end of array "c"
-        - ``a.b.c[].<i>.x[].<j>`` -- set value at index j of nested array "x"
-        - ``a.b.c[].<i>.x[].#`` -- append to nested array "x"
-        - ``a.b.c[].#.x[].#`` -- append new item with nested array append
-
-        Args:
-            key: The key to set.
-            value: The value to set.
-
-        Raises:
-            KeyError: When trying to set a protected value.
-            SetChainKeyError: When chain-key target is not an RNS type.
-        """
-        # @ raw_key = key
-        key, *subs = utils.split_key(key)
-        key = utils.unescape_key(key)
-        subs_len = len(subs)
-        is_array = key[-2:] == utils.KEY_ARRAY
-
-        # if not chain-key/array SET ??
-        if subs_len == 0 and not is_array:
-            self[key] = value
-            return
-
-        # SET to an array
-        if is_array:
-            self.__chain_set_array(key[:-2], subs, value)
-        else:  # SET the value
-            self.__chain_set_value(key, subs, value)
-
-    # TODO(refactor): reduce cognitive complexity (~16) — validation + index branching
-    def __chain_get_array(self, key: str, subs: List[str]) -> Any:
+    def _chain_get_array_(self, key: str, subs: List[str]) -> Any:
         target = self[key]
         subs_len = len(subs)
-        # validate:
         if not isinstance(target, list):
             raise KeyError(
                 f"Invalid array key '{key}'. It is required a list, but got {type(target)}"
@@ -399,182 +334,87 @@ class recursivenamespace(SimpleNamespace):
             raise KeyError(
                 f"Invalid array key '{key}'. Required the 'index' as well, e.g.: key[].#"
             )
-        # get the `index`:
         index = -1 if subs[0] == self.__HASH__ else int(subs[0])
-        # remove the `index` from sub-key:
         subs = subs[1:]
         subs_len -= 1
 
-        # if GET the value by `index`
         if subs_len == 0:
             return target[index]
 
-        # @else: GET value of sub-key
         target = target[index]
         sub_key = utils.join_key(subs)
         if isinstance(target, recursivenamespace):
-            return target.val_get(sub_key)
+            return _StaticImpl.val_get(target, sub_key)
         elif subs_len == 1:
             return getattr(target, sub_key)
         else:
             raise GetChainKeyError(target, key, sub_key)
 
-    def __chain_get_value(self, key: str, subs: List[str]) -> Any:
+    def _chain_get_value_(self, key: str, subs: List[str]) -> Any:
         target = self[key]
         sub_key = utils.join_key(subs)
         if isinstance(target, recursivenamespace):
-            return target.val_get(sub_key)
+            return _StaticImpl.val_get(target, sub_key)
         elif len(subs) == 1:
             return getattr(target, sub_key)
         else:
             raise GetChainKeyError(target, key, sub_key)
 
-    def val_get(self, key: str) -> Any:
-        """Get the value by key.
+    @staticmethod
+    def _toml_escape_str_(s: str) -> str:
+        return s.replace("\\", "\\\\").replace('"', '\\"')
 
-        Supported "chain-key" patterns:
+    @staticmethod
+    def _toml_format_scalar_(value: Any) -> str:
+        """Render a primitive TOML value (caller already handled None)."""
+        if isinstance(value, bool):
+            return str(value).lower()
+        if isinstance(value, str):
+            return f'"{recursivenamespace._toml_escape_str_(value)}"'
+        return str(value)
 
-        - ``a.b.c`` -- get the item "c"
-        - ``a.b.c[].<i>`` -- get item at index i of array "c"
-        - ``a.b.c[].#`` -- get the last item of array "c" (same as -1)
-        - ``a.b.c[].<i>.x[].<j>`` -- get item at index j of nested array "x"
+    @staticmethod
+    def _toml_format_array_(key: str, value: Any) -> str:
+        """Render ``key = [v1, v2, ...]`` or a comment if not serializable."""
+        if not all(isinstance(v, (str, int, float, bool)) for v in value):
+            return f"# {key} = [complex array - not serialized]"
+        parts = [recursivenamespace._toml_format_scalar_(v) for v in value]
+        return f"{key} = [{', '.join(parts)}]"
 
-        Args:
-            key: The key to get.
+    @staticmethod
+    def _toml_format_line_(key: str, value: Any) -> Optional[str]:
+        """Render a single ``key = value`` line, or None to skip the entry."""
+        if value is None:
+            return None
+        if isinstance(value, (str, int, float, bool)):
+            return f"{key} = {recursivenamespace._toml_format_scalar_(value)}"
+        if isinstance(value, (list, tuple)):
+            return recursivenamespace._toml_format_array_(key, value)
+        return f"# {key} = [type {type(value).__name__} not supported]"
 
-        Returns:
-            The value if the key exists.
+    @staticmethod
+    def _dict_to_toml_(data: Dict[str, Any], prefix: str = "") -> str:
+        """Convert dict to TOML format."""
+        lines: List[str] = []
+        tables: List[tuple[str, Dict[str, Any]]] = []
 
-        Raises:
-            KeyError: When trying to get a protected value or key doesn't exist.
-            GetChainKeyError: When chain-key target is not an RNS type.
-        """
-        # @ raw_key = key
-        key, *subs = utils.split_key(key)
-        key = utils.unescape_key(key)
-        subs_len = len(subs)
-        is_array = key[-2:] == utils.KEY_ARRAY
+        for key, value in data.items():
+            full_key = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                tables.append((full_key, value))
+                continue
+            line = recursivenamespace._toml_format_line_(key, value)
+            if line is not None:
+                lines.append(line)
 
-        # if not chain-key/array GET ??
-        if subs_len == 0 and not is_array:
-            return self[key]
+        for table_key, table_value in tables:
+            lines.append("")
+            lines.append(f"[{table_key}]")
+            lines.append(recursivenamespace._dict_to_toml_(table_value, ""))
 
-        # GET from an array
-        if is_array:
-            return self.__chain_get_array(key[:-2], subs)
-        # @else: GET the value
-        return self.__chain_get_value(key, subs)
+        return "\n".join(lines)
 
-    def get_or_else(
-        self, key: str, or_else: Optional[T] = None, show_log: bool = False
-    ) -> Union[Any, T]:
-        """Get the value by key.
-        Supported "chain-key", e.g.: a.b.c
-
-        Args:
-            key (str): The key to get
-
-        Returns:
-            any: The value if the `key` is existed, else return `None`.
-        """
-        try:
-            return self.val_get(key)
-        except Exception:
-            # skip the error.
-            if show_log:
-                self.__logger.warning(f"KeyNotFound - {key}", exc_info=True)
-            return or_else
-
-    def as_schema(self, schema_cls: type[T], /, **kwargs: Any) -> T:
-        if not dataclasses.is_dataclass(schema_cls):
-            raise TypeError("The 'schema_cls' must be a DataClass type.")
-        # @else:
-        fields = dataclasses.fields(schema_cls)
-        for field in fields:
-            name = field.name
-            kwargs[name] = self[name]
-        return schema_cls(**kwargs)
-
-    # Context Managers
-
-    @contextlib.contextmanager
-    def temporary(
-        self,
-    ) -> Generator["recursivenamespace", None, None]:
-        """Yield a deep copy; the original is untouched.
-
-        Example::
-
-            with config.temporary() as tmp:
-                tmp.debug = True   # modify freely
-            assert config.debug is False  # original unchanged
-        """
-        yield self.deepcopy()
-
-    @contextlib.contextmanager
-    def overlay(
-        self, overrides: Dict[str, Any]
-    ) -> Generator["recursivenamespace", None, None]:
-        """Temporarily apply *overrides*, restore on exit.
-
-        Example::
-
-            with config.overlay({"debug": True}):
-                assert config.debug is True
-            assert config.debug is False
-        """
-        originals: Dict[str, Any] = {}
-        added_keys: List[str] = []
-
-        for key, value in overrides.items():
-            nk = self.__re(key)
-            if nk in self.__dict__ and nk not in self.__protected_keys_:
-                originals[nk] = self.__dict__[nk]
-            else:
-                added_keys.append(nk)
-            self[key] = value
-
-        try:
-            yield self
-        finally:
-            for k, v in originals.items():
-                self.__dict__[k] = v
-            for k in added_keys:
-                self.__dict__.pop(k, None)
-
-    # JSON Serialization Methods
-
-    def to_json(
-        self,
-        indent: Optional[int] = 2,
-        sort_keys: bool = False,
-        ensure_ascii: bool = True,
-        **kwargs: Any,
-    ) -> str:
-        """Convert recursivenamespace to JSON string.
-
-        Args:
-            indent: Number of spaces for indentation (None for compact)
-            sort_keys: Sort keys alphabetically
-            ensure_ascii: Escape non-ASCII characters
-            **kwargs: Additional arguments passed to json.dumps()
-
-        Returns:
-            str: JSON string representation
-
-        Raises:
-            SerializationError: If serialization fails
-        """
-        try:
-            return json.dumps(
-                self.to_dict(),
-                indent=indent,
-                sort_keys=sort_keys,
-                ensure_ascii=ensure_ascii,
-                **kwargs,
-            )
-        except (TypeError, ValueError) as e:
-            raise SerializationError(f"Failed to serialize to JSON: {e}")
+    # ── Classmethod factories (kept on the class, no deprecation) ─
 
     @classmethod
     def from_json(
@@ -583,19 +423,6 @@ class recursivenamespace(SimpleNamespace):
         accepted_iter_types: Optional[List[type]] = None,
         use_raw_key: bool = False,
     ) -> "recursivenamespace":
-        """Create recursivenamespace from JSON string.
-
-        Args:
-            json_str: JSON string to parse
-            accepted_iter_types: Custom iterable types to preserve
-            use_raw_key: Disable key normalization
-
-        Returns:
-            recursivenamespace: New namespace instance
-
-        Raises:
-            SerializationError: If deserialization fails
-        """
         try:
             data = json.loads(json_str)
             if not isinstance(data, dict):
@@ -608,31 +435,6 @@ class recursivenamespace(SimpleNamespace):
         except Exception as e:
             raise SerializationError(f"Failed to parse JSON: {e}")
 
-    def save_json(
-        self,
-        filepath: Union[str, Path],
-        indent: Optional[int] = 2,
-        **kwargs: Any,
-    ) -> None:
-        """Save recursivenamespace to JSON file.
-
-        Args:
-            filepath: Path to output file
-            indent: Number of spaces for indentation
-            **kwargs: Additional arguments passed to to_json()
-
-        Raises:
-            SerializationError: If save fails
-            IOError: If file cannot be written
-        """
-        try:
-            filepath = Path(filepath)
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(self.to_json(indent=indent, **kwargs))
-        except Exception as e:
-            raise SerializationError(f"Failed to save JSON file: {e}")
-
     @classmethod
     def load_json(
         cls,
@@ -640,20 +442,6 @@ class recursivenamespace(SimpleNamespace):
         accepted_iter_types: Optional[List[type]] = None,
         use_raw_key: bool = False,
     ) -> "recursivenamespace":
-        """Load recursivenamespace from JSON file.
-
-        Args:
-            filepath: Path to JSON file
-            accepted_iter_types: Custom iterable types to preserve
-            use_raw_key: Disable key normalization
-
-        Returns:
-            recursivenamespace: New namespace instance
-
-        Raises:
-            SerializationError: If load fails
-            FileNotFoundError: If file doesn't exist
-        """
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 return cls.from_json(f.read(), accepted_iter_types, use_raw_key)
@@ -662,94 +450,6 @@ class recursivenamespace(SimpleNamespace):
         except Exception as e:
             raise SerializationError(f"Failed to load JSON file: {e}")
 
-    # TODO(refactor): reduce cognitive complexity (~19) — 5-level nested type checks for TOML
-    @staticmethod
-    def _dict_to_toml(data: Dict[str, Any], prefix: str = "") -> str:
-        """Convert dict to TOML format.
-
-        Supports basic types: str, int, float, bool, list, dict.
-        Does NOT support: datetime, inline tables, complex nesting in arrays.
-        """
-        lines = []
-        simple_values = []
-        tables = []
-
-        for key, value in data.items():
-            full_key = f"{prefix}.{key}" if prefix else key
-
-            if isinstance(value, dict):
-                tables.append((full_key, value))
-            elif isinstance(value, (str, int, float, bool, type(None))):
-                if isinstance(value, str):
-                    # Escape special characters in strings
-                    value = value.replace("\\", "\\\\").replace('"', '\\"')
-                    simple_values.append(f'{key} = "{value}"')
-                elif isinstance(value, bool):
-                    simple_values.append(f"{key} = {str(value).lower()}")
-                elif value is None:
-                    # TOML doesn't have null, skip
-                    continue
-                else:
-                    simple_values.append(f"{key} = {value}")
-            elif isinstance(value, (list, tuple)):
-                # Simple array handling (only primitive types)
-                if all(isinstance(v, (str, int, float, bool)) for v in value):
-                    array_str = "["
-                    for v in value:
-                        if isinstance(v, str):
-                            v = v.replace("\\", "\\\\").replace('"', '\\"')
-                            array_str += f'"{v}", '
-                        elif isinstance(v, bool):
-                            array_str += f"{str(v).lower()}, "
-                        else:
-                            array_str += f"{v}, "
-                    if len(value) > 0:
-                        array_str = array_str[:-2]  # Remove last comma
-                    array_str += "]"
-                    simple_values.append(f"{key} = {array_str}")
-                else:
-                    # Complex arrays not fully supported
-                    simple_values.append(
-                        f"# {key} = [complex array - not serialized]"
-                    )
-            else:
-                simple_values.append(
-                    f"# {key} = [type {type(value).__name__} not supported]"
-                )
-
-        # Write simple values first
-        if simple_values:
-            lines.extend(simple_values)
-
-        # Write tables
-        for table_key, table_value in tables:
-            lines.append("")  # Empty line before table
-            lines.append(f"[{table_key}]")
-            table_content = recursivenamespace._dict_to_toml(table_value, "")
-            lines.append(table_content)
-
-        return "\n".join(lines)
-
-    def to_toml(self) -> str:
-        """Convert recursivenamespace to TOML string.
-
-        Note: This is a minimal TOML writer supporting basic config types.
-        Limitations:
-        - No datetime support
-        - Limited array nesting
-        - No inline tables
-
-        Returns:
-            str: TOML string representation
-
-        Raises:
-            SerializationError: If serialization fails
-        """
-        try:
-            return self._dict_to_toml(self.to_dict())
-        except Exception as e:
-            raise SerializationError(f"Failed to serialize to TOML: {e}")
-
     @classmethod
     def from_toml(
         cls,
@@ -757,20 +457,6 @@ class recursivenamespace(SimpleNamespace):
         accepted_iter_types: Optional[List[type]] = None,
         use_raw_key: bool = False,
     ) -> "recursivenamespace":
-        """Create recursivenamespace from TOML string.
-
-        Args:
-            toml_str: TOML string to parse
-            accepted_iter_types: Custom iterable types to preserve
-            use_raw_key: Disable key normalization
-
-        Returns:
-            recursivenamespace: New namespace instance
-
-        Raises:
-            SerializationError: If deserialization fails
-            ImportError: If tomllib not available
-        """
         if tomllib is None:
             raise ImportError(
                 "TOML support requires Python 3.11+ or 'tomli' package. "
@@ -782,24 +468,6 @@ class recursivenamespace(SimpleNamespace):
         except Exception as e:
             raise SerializationError(f"Failed to parse TOML: {e}")
 
-    def save_toml(self, filepath: Union[str, Path]) -> None:
-        """Save recursivenamespace to TOML file.
-
-        Args:
-            filepath: Path to output file
-
-        Raises:
-            SerializationError: If save fails
-            IOError: If file cannot be written
-        """
-        try:
-            filepath = Path(filepath)
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(self.to_toml())
-        except Exception as e:
-            raise SerializationError(f"Failed to save TOML file: {e}")
-
     @classmethod
     def load_toml(
         cls,
@@ -807,28 +475,13 @@ class recursivenamespace(SimpleNamespace):
         accepted_iter_types: Optional[List[type]] = None,
         use_raw_key: bool = False,
     ) -> "recursivenamespace":
-        """Load recursivenamespace from TOML file.
-
-        Args:
-            filepath: Path to TOML file
-            accepted_iter_types: Custom iterable types to preserve
-            use_raw_key: Disable key normalization
-
-        Returns:
-            recursivenamespace: New namespace instance
-
-        Raises:
-            SerializationError: If load fails
-            FileNotFoundError: If file doesn't exist
-            ImportError: If tomllib not available
-        """
         if tomllib is None:
             raise ImportError(
                 "TOML support requires Python 3.11+ or 'tomli' package. "
                 "Install with: pip install tomli"
             )
         try:
-            with open(filepath, "rb") as f:  # TOML requires binary mode
+            with open(filepath, "rb") as f:
                 data = tomllib.load(f)
                 return cls(data, accepted_iter_types, use_raw_key)
         except FileNotFoundError:
@@ -836,9 +489,495 @@ class recursivenamespace(SimpleNamespace):
         except Exception as e:
             raise SerializationError(f"Failed to load TOML file: {e}")
 
+    # ── Public-method shims (warn + delegate to _StaticImpl) ──────
+
+    @_deprecated
+    def set_key(self, key: str) -> None:
+        return _StaticImpl.set_key(self, key)
+
+    @_deprecated
+    def get_key(self) -> str:
+        return _StaticImpl.get_key(self)
+
+    @_deprecated
+    def update(self, data: Union[Dict[str, Any], "recursivenamespace"]) -> None:
+        return _StaticImpl.update(self, data)
+
+    @_deprecated
+    def copy(self) -> "recursivenamespace":
+        return _StaticImpl.copy(self)
+
+    @_deprecated
+    def deepcopy(self) -> "recursivenamespace":
+        return _StaticImpl.deepcopy(self)
+
+    @_deprecated
+    def pop(self, key: str, default: Optional[T] = None) -> Union[Any, T]:
+        return _StaticImpl.pop(self, key, default)
+
+    @_deprecated
+    def items(self) -> List[tuple[str, Any]]:
+        return _StaticImpl.items(self)
+
+    @_deprecated
+    def keys(self) -> List[str]:
+        return _StaticImpl.keys(self)
+
+    @_deprecated
+    def values(self) -> List[Any]:
+        return _StaticImpl.values(self)
+
+    @_deprecated
+    def to_dict(self, flatten_sep: Union[str, bool] = False) -> Dict[str, Any]:
+        return _StaticImpl.to_dict(self, flatten_sep)
+
+    @_deprecated
+    def val_set(self, key: str, value: Any) -> None:
+        return _StaticImpl.val_set(self, key, value)
+
+    @_deprecated
+    def val_get(self, key: str) -> Any:
+        return _StaticImpl.val_get(self, key)
+
+    @_deprecated
+    def get_or_else(
+        self, key: str, or_else: Optional[T] = None, show_log: bool = False
+    ) -> Union[Any, T]:
+        return _StaticImpl.get_or_else(self, key, or_else, show_log)
+
+    @_deprecated
+    def as_schema(self, schema_cls: type[T], /, **kwargs: Any) -> T:
+        return _StaticImpl.as_schema(self, schema_cls, **kwargs)
+
+    @_deprecated
+    def temporary(
+        self,
+    ) -> contextlib.AbstractContextManager["recursivenamespace"]:
+        return _StaticImpl.temporary(self)
+
+    @_deprecated
+    def overlay(
+        self, overrides: Dict[str, Any]
+    ) -> contextlib.AbstractContextManager["recursivenamespace"]:
+        return _StaticImpl.overlay(self, overrides)
+
+    @_deprecated
+    def to_json(
+        self,
+        indent: Optional[int] = 2,
+        sort_keys: bool = False,
+        ensure_ascii: bool = True,
+        **kwargs: Any,
+    ) -> str:
+        return _StaticImpl.to_json(
+            self, indent, sort_keys, ensure_ascii, **kwargs
+        )
+
+    @_deprecated
+    def save_json(
+        self,
+        filepath: Union[str, Path],
+        indent: Optional[int] = 2,
+        **kwargs: Any,
+    ) -> None:
+        return _StaticImpl.save_json(self, filepath, indent, **kwargs)
+
+    @_deprecated
+    def to_toml(self) -> str:
+        return _StaticImpl.to_toml(self)
+
+    @_deprecated
+    def save_toml(self, filepath: Union[str, Path]) -> None:
+        return _StaticImpl.save_toml(self, filepath)
+
+
+# ──────────────────────────────────────────────────────────────────
+# _StaticImpl: single source of truth for the 20 public methods.
+# Every method takes the RNS instance explicitly as the first argument.
+# Internal cross-method recursion uses _StaticImpl.<other>(rns_ins, ...)
+# directly — never the shim — so no deprecation warnings fire on hops
+# the user did not make.
+# ──────────────────────────────────────────────────────────────────
+
+
+class _StaticImpl:
+    """Real implementation of RNS public instance methods.
+
+    All callers (the class shims, the ``_BoundProxy`` for ``obj._``,
+    direct ``RNS._.method(obj, ...)`` calls, and internal recursion)
+    converge on these staticmethods.
+    """
+
+    @staticmethod
+    def set_key(rns_ins: "recursivenamespace", key: str) -> None:
+        rns_ins._key_ = rns_ins._re_(key)
+
+    @staticmethod
+    def get_key(rns_ins: "recursivenamespace") -> str:
+        return rns_ins._key_
+
+    @staticmethod
+    def update(
+        rns_ins: "recursivenamespace",
+        data: Union[Dict[str, Any], "recursivenamespace"],
+    ) -> None:
+        try:
+            if not isinstance(data, recursivenamespace):
+                data = recursivenamespace(
+                    data,
+                    rns_ins._supported__types_,
+                    rns_ins._use__raw_key_,
+                )
+        except Exception as e:
+            raise TypeError(
+                f"Failed to update with data of type {type(data)}"
+            ) from e
+        for key, val in _StaticImpl.items(data):
+            rns_ins[key] = val
+
+    @staticmethod
+    def copy(rns_ins: "recursivenamespace") -> "recursivenamespace":
+        return rns_ins.__copy__()
+
+    @staticmethod
+    def deepcopy(rns_ins: "recursivenamespace") -> "recursivenamespace":
+        memo: Dict[int, Any] = {}
+        return rns_ins.__deepcopy__(memo)
+
+    @staticmethod
+    def pop(
+        rns_ins: "recursivenamespace",
+        key: str,
+        default: Optional[T] = None,
+    ) -> Union[Any, T]:
+        key = rns_ins._re_(key)
+        if key in rns_ins._protected__keys_:
+            raise KeyError(f"The key '{key}' is protected.")
+        if key in rns_ins.__dict__:
+            val = rns_ins.__dict__[key]
+            del rns_ins.__dict__[key]
+            return val
+        return default
+
+    @staticmethod
+    def items(rns_ins: "recursivenamespace") -> List[tuple[str, Any]]:
+        return [
+            (k, v)
+            for k, v in rns_ins.__dict__.items()
+            if k not in rns_ins._protected__keys_
+        ]
+
+    @staticmethod
+    def keys(rns_ins: "recursivenamespace") -> List[str]:
+        return [
+            k
+            for k in rns_ins.__dict__.keys()
+            if k not in rns_ins._protected__keys_
+        ]
+
+    @staticmethod
+    def values(rns_ins: "recursivenamespace") -> List[Any]:
+        return [
+            v
+            for k, v in rns_ins.__dict__.items()
+            if k not in rns_ins._protected__keys_
+        ]
+
+    @staticmethod
+    def to_dict(
+        rns_ins: "recursivenamespace",
+        flatten_sep: Union[str, bool] = False,
+    ) -> Dict[str, Any]:
+        """Convert RNS to dict. If flatten_sep is set, flatten keys."""
+        pairs = []
+        for k, v in _StaticImpl.items(rns_ins):
+            if isinstance(v, recursivenamespace):
+                pairs.append((k, _StaticImpl.to_dict(v)))
+            elif isinstance(v, dict):
+                pairs.append((k, v))
+            elif (
+                hasattr(v, "__iter__") and type(v) in rns_ins._supported__types_
+            ):
+                pairs.append((k, rns_ins._iter_to_dict_(v)))
+            else:
+                pairs.append((k, v))
+        d = dict(pairs)
+        if flatten_sep:
+            sep = flatten_sep if isinstance(flatten_sep, str) else "."
+            d = dict(utils.flatten_as_dict(d, sep=sep))
+        return d
+
+    @staticmethod
+    def val_set(rns_ins: "recursivenamespace", key: str, value: Any) -> None:
+        """Set the value by key. Supports chain-keys and arrays.
+
+        Patterns: ``a.b.c``, ``a.b.c[].<i>``, ``a.b.c[].#``, etc.
+        """
+        key, *subs = utils.split_key(key)
+        key = utils.unescape_key(key)
+        subs_len = len(subs)
+        is_array = key[-2:] == utils.KEY_ARRAY
+
+        if subs_len == 0 and not is_array:
+            rns_ins[key] = value
+            return
+
+        if is_array:
+            rns_ins._chain_set_array_(key[:-2], subs, value)
+        else:
+            rns_ins._chain_set_value_(key, subs, value)
+
+    @staticmethod
+    def val_get(rns_ins: "recursivenamespace", key: str) -> Any:
+        """Get the value by key. Supports chain-keys and arrays."""
+        key, *subs = utils.split_key(key)
+        key = utils.unescape_key(key)
+        subs_len = len(subs)
+        is_array = key[-2:] == utils.KEY_ARRAY
+
+        if subs_len == 0 and not is_array:
+            return rns_ins[key]
+
+        if is_array:
+            return rns_ins._chain_get_array_(key[:-2], subs)
+        return rns_ins._chain_get_value_(key, subs)
+
+    @staticmethod
+    def get_or_else(
+        rns_ins: "recursivenamespace",
+        key: str,
+        or_else: Optional[T] = None,
+        show_log: bool = False,
+    ) -> Union[Any, T]:
+        try:
+            return _StaticImpl.val_get(rns_ins, key)
+        except Exception:
+            if show_log:
+                rns_ins._logger_.warning(f"KeyNotFound - {key}", exc_info=True)
+            return or_else
+
+    @staticmethod
+    def as_schema(
+        rns_ins: "recursivenamespace",
+        schema_cls: type[T],
+        /,
+        **kwargs: Any,
+    ) -> T:
+        if not dataclasses.is_dataclass(schema_cls):
+            raise TypeError("The 'schema_cls' must be a DataClass type.")
+        fields = dataclasses.fields(schema_cls)
+        for field in fields:
+            name = field.name
+            kwargs[name] = rns_ins[name]
+        return schema_cls(**kwargs)
+
+    @staticmethod
+    @contextlib.contextmanager
+    def temporary(
+        rns_ins: "recursivenamespace",
+    ) -> Generator["recursivenamespace", None, None]:
+        """Yield a deep copy; the original is untouched."""
+        yield _StaticImpl.deepcopy(rns_ins)
+
+    @staticmethod
+    @contextlib.contextmanager
+    def overlay(
+        rns_ins: "recursivenamespace", overrides: Dict[str, Any]
+    ) -> Generator["recursivenamespace", None, None]:
+        """Temporarily apply *overrides*, restore on exit."""
+        originals: Dict[str, Any] = {}
+        added_keys: List[str] = []
+
+        for key, value in overrides.items():
+            nk = rns_ins._re_(key)
+            if nk in rns_ins.__dict__ and nk not in rns_ins._protected__keys_:
+                originals[nk] = rns_ins.__dict__[nk]
+            else:
+                added_keys.append(nk)
+            rns_ins[key] = value
+
+        try:
+            yield rns_ins
+        finally:
+            for k, v in originals.items():
+                rns_ins.__dict__[k] = v
+            for k in added_keys:
+                rns_ins.__dict__.pop(k, None)
+
+    @staticmethod
+    def to_json(
+        rns_ins: "recursivenamespace",
+        indent: Optional[int] = 2,
+        sort_keys: bool = False,
+        ensure_ascii: bool = True,
+        **kwargs: Any,
+    ) -> str:
+        try:
+            return json.dumps(
+                _StaticImpl.to_dict(rns_ins),
+                indent=indent,
+                sort_keys=sort_keys,
+                ensure_ascii=ensure_ascii,
+                **kwargs,
+            )
+        except (TypeError, ValueError) as e:
+            raise SerializationError(f"Failed to serialize to JSON: {e}")
+
+    @staticmethod
+    def save_json(
+        rns_ins: "recursivenamespace",
+        filepath: Union[str, Path],
+        indent: Optional[int] = 2,
+        **kwargs: Any,
+    ) -> None:
+        try:
+            filepath = Path(filepath)
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(_StaticImpl.to_json(rns_ins, indent=indent, **kwargs))
+        except Exception as e:
+            raise SerializationError(f"Failed to save JSON file: {e}")
+
+    @staticmethod
+    def to_toml(rns_ins: "recursivenamespace") -> str:
+        try:
+            return recursivenamespace._dict_to_toml_(
+                _StaticImpl.to_dict(rns_ins)
+            )
+        except Exception as e:
+            raise SerializationError(f"Failed to serialize to TOML: {e}")
+
+    @staticmethod
+    def save_toml(
+        rns_ins: "recursivenamespace", filepath: Union[str, Path]
+    ) -> None:
+        try:
+            filepath = Path(filepath)
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(_StaticImpl.to_toml(rns_ins))
+        except Exception as e:
+            raise SerializationError(f"Failed to save TOML file: {e}")
+
+
+# ──────────────────────────────────────────────────────────────────
+# Bound proxy + descriptor for ``obj._``
+# ──────────────────────────────────────────────────────────────────
+
+
+class _BoundProxy:
+    """Curries the owner into ``_StaticImpl`` calls so ``obj._.to_dict()``
+    works as a normal bound-method call."""
+
+    __slots__ = ("_owner",)
+
+    def __init__(self, owner: "recursivenamespace") -> None:
+        object.__setattr__(self, "_owner", owner)
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(name)
+        attr = getattr(_StaticImpl, name, None)
+        if attr is None or not callable(attr):
+            raise AttributeError(name)
+        return functools.partial(attr, self._owner)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        raise AttributeError("RNS '_' proxy is read-only")
+
+    def __dir__(self) -> List[str]:
+        return [n for n in dir(_StaticImpl) if not n.startswith("_")]
+
+    def __repr__(self) -> str:
+        return f"<RNS method proxy for 0x{id(self._owner):x}>"
+
+
+class _Descriptor:
+    """Data descriptor exposing ``recursivenamespace._``.
+
+    Class access (``RNS._``) returns the static container so callers
+    can write ``RNS._.to_dict(obj)``. Instance access (``obj._``)
+    returns a fresh ``_BoundProxy`` so callers can write
+    ``obj._.to_dict()`` bound-method style. The descriptor's
+    ``__set__`` / ``__delete__`` make it a *data* descriptor that
+    can't be shadowed by instance ``__dict__`` assignments.
+    """
+
+    def __get__(
+        self,
+        instance: Optional["recursivenamespace"],
+        owner: type,
+    ) -> Any:
+        if instance is None:
+            return _StaticImpl
+        return _BoundProxy(instance)
+
+    def __set__(self, instance: "recursivenamespace", value: Any) -> None:
+        raise AttributeError("Cannot assign to '_' — reserved method proxy")
+
+    def __delete__(self, instance: "recursivenamespace") -> None:
+        raise AttributeError("Cannot delete '_' — reserved method proxy")
+
+
+# Bind the descriptor and compute the protected-attribute set.
+# Use setattr so static type checkers don't flag the dynamic attribute.
+setattr(recursivenamespace, "_", _Descriptor())
+
+# Two-tier protection. Hard-protected names load-bearing for internal
+# logic raise KeyError on data collision. Soft-protected public method
+# names (deprecated direct-call shims + classmethod factories) emit
+# DeprecationWarning and let the data win — callers can still reach the
+# methods via ``obj._.<name>(...)``.
+# All single-underscore class attrs — the ``_`` proxy plus every
+# private helper (_re_, _process_, _chain_*_, _iter_to_dict_, etc.)
+# and ``_logger_``. Excludes Python dunders.
+_HARD_PROTECTED_CLASS_ATTRS: frozenset[str] = frozenset(
+    name
+    for name in dir(recursivenamespace)
+    if not name.startswith("__") and name.startswith("_")
+)
+_DEPRECATED_PUBLIC_METHODS: frozenset[str] = frozenset(
+    name for name in dir(recursivenamespace) if not name.startswith("_")
+)
+
 
 # %%
-# TODO(refactor): reduce cognitive complexity (~17) — multi-branch data type handling
+def _rns_normalize_return_(
+    ret_val: Any, use_chain_key: bool, props: str
+) -> Any:
+    """Convert a decorated function's return value into ``data`` for RNS.
+
+    Recognised shapes: a list of ``KV_Pair`` (chain-key mode), a dict,
+    a dataclass instance, or any other scalar (wrapped under ``props``).
+    """
+    if (
+        use_chain_key
+        and isinstance(ret_val, list)
+        and (not ret_val or isinstance(ret_val[0], utils.KV_Pair))
+    ):
+        return ret_val
+    if isinstance(ret_val, dict):
+        return ret_val
+    if dataclasses.is_dataclass(ret_val):
+        return dataclasses.asdict(ret_val)  # type: ignore[arg-type]
+    return {props: ret_val}
+
+
+def _rns_build_from_data_(
+    data: Any,
+    accepted_iter_types_list: List[type],
+    use_raw_key: bool,
+    use_chain_key: bool,
+) -> "recursivenamespace":
+    if not use_chain_key:
+        return recursivenamespace(data, accepted_iter_types_list, use_raw_key)
+    ret = recursivenamespace(None, accepted_iter_types_list, use_raw_key)
+    items = data.items() if isinstance(data, dict) else data
+    for key, value in items:
+        _StaticImpl.val_set(ret, key, value)
+    return ret
+
+
 def rns(
     accepted_iter_types: Optional[List[type]] = None,
     use_raw_key: bool = False,
@@ -846,50 +985,21 @@ def rns(
     props: str = "props",
 ) -> Callable[[Callable[..., Any]], Callable[..., recursivenamespace]]:
     """Create RNS object"""
-    if accepted_iter_types is None:
-        accepted_iter_types_list: List[type] = []
-    else:
-        accepted_iter_types_list = accepted_iter_types
+    accepted_iter_types_list: List[type] = (
+        [] if accepted_iter_types is None else accepted_iter_types
+    )
 
     def fn_wrapper(
         func: Callable[..., Any],
     ) -> Callable[..., recursivenamespace]:  # NOSONAR
         @functools.wraps(func)
         def create_rns(*args: Any, **kwargs: Any) -> recursivenamespace:
-            # Do something before:
             ret_val = func(*args, **kwargs)
-
-            # Prepare data:
-            # create from kv_pair ??
-            data: Any
-            if (
-                use_chain_key
-                and isinstance(ret_val, list)
-                and (len(ret_val) == 0 or isinstance(ret_val[0], utils.KV_Pair))
-            ):
-                data = ret_val
-            elif isinstance(ret_val, dict):
-                data = ret_val
-            elif dataclasses.is_dataclass(ret_val):
-                data = dataclasses.asdict(ret_val)  # type: ignore[arg-type]
-            else:
-                data = {f"{props}": ret_val}
-
-            # Do something after:
-            if use_chain_key:
-                ret = recursivenamespace(
-                    None, accepted_iter_types_list, use_raw_key
-                )
-                items = data.items() if isinstance(data, dict) else data
-                for key, value in items:
-                    ret.val_set(key, value)
-                return ret
-            else:
-                return recursivenamespace(
-                    data, accepted_iter_types_list, use_raw_key
-                )
+            data = _rns_normalize_return_(ret_val, use_chain_key, props)
+            return _rns_build_from_data_(
+                data, accepted_iter_types_list, use_raw_key, use_chain_key
+            )
 
         return create_rns
 
-    # @ret:
     return fn_wrapper

@@ -49,6 +49,13 @@ minversion = "6.0"
 addopts = "--strict-markers --strict-config --capture=no --durations=30 --junitxml=out/test-data.xml"
 testpaths = ["tests"]
 junit_family = "xunit2"
+filterwarnings = [
+    # Phase 1 of the method-proxy migration: existing tests use the
+    # legacy direct-call form (obj.to_dict() etc.). The TestMethodProxy
+    # suite explicitly asserts the warning via pytest.warns; everywhere
+    # else we treat it as noise to stay green during the migration.
+    "ignore:Calling .* directly on an RNS instance is deprecated:DeprecationWarning",
+]
 
 [tool.coverage.run]
 branch = true

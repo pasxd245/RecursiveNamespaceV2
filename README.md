@@ -64,13 +64,49 @@ print(rn.address.city)  # Anytown
 print(rn["friends"][1])  # Tom
 
 # Chain-key access
-rn.val_set("address.zip", "12345")
-print(rn.val_get("address.zip"))  # 12345
+rn._.val_set("address.zip", "12345")
+print(rn._.val_get("address.zip"))  # 12345
 
 # Convert back to dict
-data2 = rn.to_dict()
+data2 = rn._.to_dict()
 print(data2["address"]["city"])  # Anytown
 ```
+
+## Accessing methods when data keys collide
+
+User data often contains keys like `"items"`, `"keys"`, `"update"`, or
+`"to_dict"`. These names share namespace with library methods, so the
+library keeps them reachable from one canonical place: the `obj._`
+proxy.
+
+- **Data with method-name keys is accepted.** `RNS({"items": [...]})`
+  works; the value is stored under `obj["items"]` and `obj.items`. A
+  `DeprecationWarning` reminds you that the matching method must now be
+  called as `obj._.items()`.
+- **Direct calls to the legacy methods** (`obj.to_dict()`,
+  `obj.items()`, …) also emit `DeprecationWarning` and forward to the
+  proxy. They will be removed in **v0.1.0** (the first stable release);
+  migrate to `obj._.<method>(...)` before then.
+- **`_` itself is reserved.** Data keys named `"_"` raise `KeyError`.
+
+```python
+rn = RNS({"name": "John"})
+
+# Preferred (silent):
+rn._.to_dict()
+rn._.val_set("address.zip", "12345")
+
+# Also works — class-level, useful in tests and tooling:
+RNS._.to_dict(rn)
+
+# Legacy (works but warns):
+rn.to_dict()  # DeprecationWarning
+```
+
+See [`docs/guides/method-proxy.rst`](docs/guides/method-proxy.rst) for
+the full migration plan and
+[`examples/advanced/13_method_proxy.py`](examples/advanced/13_method_proxy.py)
+for a runnable example.
 
 ## Examples
 

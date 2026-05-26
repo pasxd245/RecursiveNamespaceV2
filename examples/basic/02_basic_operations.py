@@ -23,11 +23,11 @@ print("rn.address.street:", rn.address.street)  # Output: 123 Main St
 
 print("------------")
 print("to_dict():")
-pprint(rn.to_dict())
+pprint(rn._.to_dict())
 
 print("------------")
 print("to_dict() flattening with '_' separator:")
-pprint(rn.to_dict(flatten_sep="_"))
+pprint(rn._.to_dict(flatten_sep="_"))
 
 
 print("------------")
@@ -35,8 +35,8 @@ print("You can also use it as a dictionary:")
 print(len(rn))  # 3
 print(len(rn.address))  # 2
 print(len(rn["address"]))  # 2
-print(rn.keys())  # ['name', 'age', 'address']
-for k, v in rn.items():
+print(rn._.keys())  # ['name', 'age', 'address']
+for k, v in rn._.items():
     print(f"  {k}: {v}")
 
 print("------------")

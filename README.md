@@ -85,7 +85,8 @@ proxy.
   called as `obj._.items()`.
 - **Direct calls to the legacy methods** (`obj.to_dict()`,
   `obj.items()`, …) also emit `DeprecationWarning` and forward to the
-  proxy. They will be removed in a future major release.
+  proxy. They will be removed in **v0.1.0** (the first stable release);
+  migrate to `obj._.<method>(...)` before then.
 - **`_` itself is reserved.** Data keys named `"_"` raise `KeyError`.
 
 ```python

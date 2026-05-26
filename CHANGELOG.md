@@ -1,6 +1,30 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.0.4] - 2026-05-26
+
+### Documentation
+
+- Align README, getting_started, and basic examples with obj._ proxy([c7aa221](https://github.com/pasxd245/RecursiveNamespaceV2/commit/c7aa22156f9fdd3078df6f8ecbd6406b2225a6c9))
+- Update CHANGELOG.md for v0.0.3 and auto-update in release workflow [skip ci]([9f7853a](https://github.com/pasxd245/RecursiveNamespaceV2/commit/9f7853a4851fc1bbb5c98ef11fda3e89009659d9))
+
+### Features
+
+- Protect method names + introduce obj._ method proxy([1fe2668](https://github.com/pasxd245/RecursiveNamespaceV2/commit/1fe2668f7016c79876a0561d04a46cbf0d04cf81))
+
+### Miscellaneous
+
+- Establish agent knowledge base directory structure (.agents/)([f5d37d1](https://github.com/pasxd245/RecursiveNamespaceV2/commit/f5d37d17684836fbc211d9563bc22cea9ea4bcae))
+
+### Other
+
+- Merge pull request #7 from pasxd245/dev
+
+feat: introduce obj._ method proxy + protect attrs (Phase 1)([16769f5](https://github.com/pasxd245/RecursiveNamespaceV2/commit/16769f5502189964ede98293324b8e9c2bfb95e7))
+
+### Refactoring
+
+- Soft-protect deprecated method names; track uv.lock([a08de15](https://github.com/pasxd245/RecursiveNamespaceV2/commit/a08de15a168d2d25e798bac857cbf92cb4234cbf))
 ## [0.0.3] - 2026-02-14
 
 ### Build
@@ -85,3 +109,4 @@ Feat: The first enhance-version([0673012](https://github.com/pasxd245/RecursiveN
 ### Testing
 
 - Tests updated to reflect latest changes([59a0ff3](https://github.com/pasxd245/RecursiveNamespaceV2/commit/59a0ff3a0ef8f130c10de9314a0daec28c4bdd08))
+

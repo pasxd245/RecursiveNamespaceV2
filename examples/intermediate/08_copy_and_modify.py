@@ -11,11 +11,11 @@ original = RNS(
 )
 
 # ── Shallow copy ────────────────────────────────────────────────
-shallow = original.copy()
+shallow = original._.copy()
 print("Shallow copy:", shallow.name)
 
 # ── Deep copy ───────────────────────────────────────────────────
-deep = original.deepcopy()
+deep = original._.deepcopy()
 deep.params.lr = 0.01
 deep.name = "experiment_2"
 print(f"Deep copy lr: {deep.params.lr}")  # 0.01
@@ -23,7 +23,7 @@ print(f"Original lr:  {original.params.lr}")  # 0.001
 
 # ── temporary() context manager ─────────────────────────────────
 print("\nUsing temporary():")
-with original.temporary() as tmp:
+with original._.temporary() as tmp:
     tmp.params.lr = 0.1
     tmp.params.epochs = 100
     tmp.results.accuracy = 0.99
@@ -33,8 +33,8 @@ print(f"  After:  lr={original.params.lr}, acc={original.results.accuracy}")
 
 # ── pop and delete ──────────────────────────────────────────────
 ns = RNS({"a": 1, "b": 2, "c": 3})
-val = ns.pop("b")
-print(f"\nPopped b={val}, remaining keys: {ns.keys()}")
+val = ns._.pop("b")
+print(f"\nPopped b={val}, remaining keys: {ns._.keys()}")
 
 del ns["c"]
-print(f"After del c: {ns.keys()}")
+print(f"After del c: {ns._.keys()}")

@@ -199,9 +199,14 @@ class recursivenamespace(SimpleNamespace):
         if key in self._protected__keys_:
             raise KeyError(f"The key '{key}' is protected.")
         if key in _DEPRECATED_PUBLIC_METHODS:
+            # FutureWarning (not DeprecationWarning) so the signal is
+            # visible under Python's default filter. The shadow is an
+            # end-user-data event — the caller's data collides with a
+            # library method name — and they need to see it without
+            # opting in via -W default.
             warnings.warn(
                 _SHADOW_TEMPLATE.format(name=key),
-                DeprecationWarning,
+                FutureWarning,
                 stacklevel=2,
             )
         setattr(self, key, value)
@@ -271,7 +276,11 @@ class recursivenamespace(SimpleNamespace):
             self._array_set_at_(target, key, int(head), rest, value)
 
     def _get_or_create_list_target_(self, key: str) -> List[Any]:
-        if not hasattr(self, key):
+        # Use ``key in self`` (which checks ``__dict__``) rather than
+        # ``hasattr`` — ``hasattr`` resolves class attributes too, so a
+        # deprecated method name like ``items`` would falsely look
+        # "present" and the bound method would be returned below.
+        if key not in self:
             self[key] = []
         target = self[key]
         if not isinstance(target, list):
@@ -312,7 +321,9 @@ class recursivenamespace(SimpleNamespace):
             raise SetChainKeyError(child, f"{key}[{index}]", sub_key)
 
     def _chain_set_value_(self, key: str, subs: List[str], value: Any) -> None:
-        if not hasattr(self, key):
+        # See note in ``_get_or_create_list_target_``: ``hasattr`` would
+        # find class-level deprecated method shims and skip auto-vivify.
+        if key not in self:
             self[key] = recursivenamespace(
                 None, self._supported__types_, self._use__raw_key_
             )
@@ -324,6 +335,12 @@ class recursivenamespace(SimpleNamespace):
             raise SetChainKeyError(target, key, sub_key)
 
     def _chain_get_array_(self, key: str, subs: List[str]) -> Any:
+        # Without this guard, a missing data field whose name matches a
+        # class method (e.g. ``items``) would resolve to a bound method
+        # via attribute lookup and hit the type-mismatch branch below
+        # with a confusing "method" type in the message.
+        if key not in self:
+            raise GetChainKeyError(None, key, utils.join_key(subs))
         target = self[key]
         subs_len = len(subs)
         if not isinstance(target, list):
@@ -351,8 +368,11 @@ class recursivenamespace(SimpleNamespace):
             raise GetChainKeyError(target, key, sub_key)
 
     def _chain_get_value_(self, key: str, subs: List[str]) -> Any:
-        target = self[key]
         sub_key = utils.join_key(subs)
+        # See ``_chain_get_array_``: guard against class-method shadow.
+        if key not in self:
+            raise GetChainKeyError(None, key, sub_key)
+        target = self[key]
         if isinstance(target, recursivenamespace):
             return _StaticImpl.val_get(target, sub_key)
         elif len(subs) == 1:
@@ -926,8 +946,10 @@ setattr(recursivenamespace, "_", _Descriptor())
 # Two-tier protection. Hard-protected names load-bearing for internal
 # logic raise KeyError on data collision. Soft-protected public method
 # names (deprecated direct-call shims + classmethod factories) emit
-# DeprecationWarning and let the data win — callers can still reach the
-# methods via ``obj._.<name>(...)``.
+# FutureWarning and let the data win — callers can still reach the
+# methods via ``obj._.<name>(...)``. FutureWarning (vs DeprecationWarning
+# on the @_deprecated call shims) because shadow events are caused by
+# end-user data and must surface under Python's default warning filter.
 # All single-underscore class attrs — the ``_`` proxy plus every
 # private helper (_re_, _process_, _chain_*_, _iter_to_dict_, etc.)
 # and ``_logger_``. Excludes Python dunders.

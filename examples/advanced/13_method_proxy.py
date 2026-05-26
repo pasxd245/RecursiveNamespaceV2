@@ -12,11 +12,14 @@ from recursivenamespace import RNS
 
 # ── 1. Collision case ────────────────────────────────────────────
 # Method names are SOFT-protected: data is accepted, a
-# DeprecationWarning tells you the matching method must be called via
-# obj._.<name>().
+# FutureWarning tells you the matching method must be called via
+# obj._.<name>(). FutureWarning (not DeprecationWarning) so the
+# collision is visible under Python's default warning filter — the
+# in-memory object is now broken (collision.items is the list, not the
+# method), and that should not require -W default to notice.
 
 with warnings.catch_warnings(record=True) as captured:
-    warnings.simplefilter("always", DeprecationWarning)
+    warnings.simplefilter("always", FutureWarning)
     collision = RNS({"items": [1, 2, 3], "name": "John"})
     print(f"Stored data: items={collision['items']}, name={collision.name}")
     print(f"Shadow warning: {captured[0].message}")

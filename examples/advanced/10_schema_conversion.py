@@ -29,12 +29,12 @@ raw = RNS(
 )
 
 # Convert to a typed dataclass
-db = raw.as_schema(DatabaseConfig)
+db = raw._.as_schema(DatabaseConfig)
 print(f"DB: {db.host}:{db.port}/{db.name}")
 print(f"Type: {type(db).__name__}")  # DatabaseConfig
 
 # Works with any dataclass
 app_data = RNS({"debug": True, "version": "2.0.1"})
-app = app_data.as_schema(AppConfig)
+app = app_data._.as_schema(AppConfig)
 print(f"\nApp v{app.version}, debug={app.debug}")
 print(f"Type: {type(app).__name__}")  # AppConfig

@@ -35,9 +35,9 @@ print(f"Permissions: {resp.data.permissions}")
 print(f"Request ID: {resp.meta.request_id}")
 
 # Safe access for optional fields
-bio = resp.get_or_else("data.user.bio", "No bio set")
+bio = resp._.get_or_else("data.user.bio", "No bio set")
 print(f"Bio: {bio}")
 
 # Extract just what you need
-user_dict = resp.data.user.to_dict()
+user_dict = resp.data.user._.to_dict()
 print(f"\nUser dict keys: {list(user_dict.keys())}")

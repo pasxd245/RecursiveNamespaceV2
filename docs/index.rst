@@ -51,6 +51,12 @@ Basic Usage:
    etc. — still work but emit ``DeprecationWarning`` and will be removed
    in **v0.1.0** (the first stable release). Use the ``obj._`` proxy
    instead: ``rn._.to_dict()``, ``rn._.items()``, ``rn._.val_set(...)``.
+
+   Data keys that collide with a method name (e.g. ``RNS({"items": ...})``)
+   emit ``FutureWarning`` — a louder category, visible under Python's
+   default filter — because the collision is caused by user data and
+   should not require ``-W default`` to surface.
+
    See :doc:`guides/method-proxy` for the full migration plan.
 
 Contents

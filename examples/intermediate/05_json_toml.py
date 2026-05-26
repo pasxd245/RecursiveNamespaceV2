@@ -12,7 +12,7 @@ config = RNS(
 )
 
 # ── JSON ────────────────────────────────────────────────────────
-json_str = config.to_json(indent=2, sort_keys=True)
+json_str = config._.to_json(indent=2, sort_keys=True)
 print("JSON output:")
 print(json_str)
 
@@ -22,12 +22,12 @@ assert loaded.app.name == "MyApp"
 assert loaded.database.port == 5432
 
 # File I/O
-config.save_json("/tmp/rns_example_config.json")
+config._.save_json("/tmp/rns_example_config.json")
 from_file = RNS.load_json("/tmp/rns_example_config.json")
 assert from_file == config
 
 # ── TOML ────────────────────────────────────────────────────────
-toml_str = config.to_toml()
+toml_str = config._.to_toml()
 print("\nTOML output:")
 print(toml_str)
 
@@ -36,7 +36,7 @@ loaded_toml = RNS.from_toml(toml_str)
 assert loaded_toml.app.name == "MyApp"
 
 # File I/O
-config.save_toml("/tmp/rns_example_config.toml")
+config._.save_toml("/tmp/rns_example_config.toml")
 from_toml_file = RNS.load_toml("/tmp/rns_example_config.toml")
 assert from_toml_file.app.name == "MyApp"
 

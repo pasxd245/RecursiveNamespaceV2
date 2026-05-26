@@ -19,7 +19,7 @@ Without the proxy:
 
 The library solves this by giving every method a second, collision-free
 home: ``obj._``. Data with method-name keys is accepted (you'll see a
-``DeprecationWarning`` reminding you that the matching method must be
+``FutureWarning`` reminding you that the matching method must be
 called as ``obj._.<name>()``); only the ``_`` proxy itself is reserved
 and raises ``KeyError`` if you try to use ``"_"`` as a data key.
 
@@ -51,8 +51,8 @@ The migration runs over three releases:
 * **Phase 1 (this release).** ``obj._`` ships alongside the legacy
   direct-call API. Direct method calls emit a ``DeprecationWarning``
   pointing to the proxy form. Data keys that collide with public method
-  names are accepted with a similar ``DeprecationWarning``; only ``_``
-  itself raises.
+  names are accepted with a ``FutureWarning`` (a louder category,
+  visible under Python's default filter); only ``_`` itself raises.
 * **Phase 2.** The warning is tightened (raised in stricter test
   configurations).
 * **Phase 3 (next major release).** Direct method access is removed.
@@ -70,6 +70,47 @@ What lives where
 * **Dunders** (``__setitem__``, ``__len__``, ``__copy__``, ...) and
   private helpers (``_re``, ``_chain_set_array``, ...) stay on the
   class. They are not part of the public API.
+
+Warning visibility (read this if you're integrating RNS)
+--------------------------------------------------------
+
+RNS emits two warning categories with intentionally different visibility:
+
+* **Shadow events** — your data key collides with a method name
+  (e.g. ``RNS({"items": "..."})``). Emitted as ``FutureWarning``.
+  ``FutureWarning`` is shown under Python's **default** filter, so the
+  collision surfaces in production logs the first time it happens —
+  exactly the case where the in-memory object is now subtly broken
+  (``obj.items`` is a string, ``obj.items()`` raises ``TypeError``)
+  while the JSON output still looks correct.
+
+* **Direct-call deprecation** — you called ``obj.to_dict()`` instead
+  of ``obj._.to_dict()``. Emitted as ``DeprecationWarning``. Python's
+  default filter suppresses ``DeprecationWarning`` raised outside
+  ``__main__``, so these will be silent in normal application runs.
+  To see them during migration, opt in:
+
+  .. code-block:: bash
+
+      # one-off
+      PYTHONWARNINGS=default python app.py
+
+      # in CI / tests
+      pytest -W default
+
+  Or, in a logging-based app, route ``warnings`` through your logger
+  at startup so the filter no longer applies:
+
+  .. code-block:: python
+
+      import logging
+      logging.captureWarnings(True)
+
+The rationale for the split: a shadow event is caused by **end-user
+data** flowing into RNS and silently breaks the in-memory object, so
+it must be unmissable. A direct-call deprecation is a **developer**
+choosing the legacy API, and migration is something the developer
+opts into when they're ready — the standard Python convention.
 
 Suppressing the warning during migration
 ----------------------------------------

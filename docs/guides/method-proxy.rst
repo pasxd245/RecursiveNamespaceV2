@@ -17,11 +17,11 @@ Without the proxy:
     rn = RNS({"items": [1, 2, 3]})   # would shadow rn.items()
     rn.items()                        # TypeError: 'list' object is not callable
 
-To prevent this corruption, RNS protects all public method names from
-being used as data keys — but that means real-world JSON containing
-``"items"`` cannot be loaded. The ``obj._`` proxy is the way out: it
-gives every method a second, collision-free home so the protection on
-method names can be removed in a future release.
+The library solves this by giving every method a second, collision-free
+home: ``obj._``. Data with method-name keys is accepted (you'll see a
+``DeprecationWarning`` reminding you that the matching method must be
+called as ``obj._.<name>()``); only the ``_`` proxy itself is reserved
+and raises ``KeyError`` if you try to use ``"_"`` as a data key.
 
 Three equivalent call shapes
 ----------------------------
@@ -49,15 +49,15 @@ Migration plan
 The migration runs over three releases:
 
 * **Phase 1 (this release).** ``obj._`` ships alongside the legacy
-  direct-call API. Every direct call emits a ``DeprecationWarning``
-  pointing to the proxy form. Method names remain protected from data
-  shadowing.
+  direct-call API. Direct method calls emit a ``DeprecationWarning``
+  pointing to the proxy form. Data keys that collide with public method
+  names are accepted with a similar ``DeprecationWarning``; only ``_``
+  itself raises.
 * **Phase 2.** The warning is tightened (raised in stricter test
   configurations).
 * **Phase 3 (next major release).** Direct method access is removed.
-  Once removed, the names are no longer protected and user data may
-  contain keys like ``"items"`` or ``"to_dict"``. Only ``_`` itself
-  stays protected.
+  The shadow warning goes away because there is no method left to
+  shadow. Only ``_`` stays reserved.
 
 What lives where
 ----------------

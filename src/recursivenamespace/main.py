@@ -60,6 +60,12 @@ _DEPRECATION_TEMPLATE = (
     "instead."
 )
 
+_SHADOW_TEMPLATE = (
+    "Data field '{name}' shadows the deprecated method '{name}'. The "
+    "value is stored and reachable via obj['{name}'] / obj.{name}; "
+    "call the method via 'obj._.{name}(...)'."
+)
+
 
 def _deprecated(func: Callable[..., Any]) -> Callable[..., Any]:
     """Mark a class-level shim as deprecated in favor of ``obj._.method(...)``.
@@ -103,7 +109,9 @@ class recursivenamespace(SimpleNamespace):
         )
 
         self._protected__keys_: set[str] = set()  # init attr in __dict__
-        self._protected__keys_ = set(self.__dict__.keys()) | _PUBLIC_CLASS_ATTRS
+        self._protected__keys_ = (
+            set(self.__dict__.keys()) | _HARD_PROTECTED_CLASS_ATTRS
+        )
 
         if isinstance(data, dict):
             kwargs.update(data)
@@ -190,6 +198,12 @@ class recursivenamespace(SimpleNamespace):
         key = self._re_(key)
         if key in self._protected__keys_:
             raise KeyError(f"The key '{key}' is protected.")
+        if key in _DEPRECATED_PUBLIC_METHODS:
+            warnings.warn(
+                _SHADOW_TEMPLATE.format(name=key),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         setattr(self, key, value)
 
     def __getitem__(self, key: str) -> Any:
@@ -909,12 +923,21 @@ class _Descriptor:
 # Use setattr so static type checkers don't flag the dynamic attribute.
 setattr(recursivenamespace, "_", _Descriptor())
 
-# Names of class-level attributes that user data must not shadow.
-# Filter: everything not starting with ``__`` — this keeps public
-# methods, the ``_`` proxy, ``_logger_``, and private helpers like
-# ``_re_`` / ``_process_`` / ``_chain_*_`` in the protected set.
-_PUBLIC_CLASS_ATTRS: frozenset[str] = frozenset(
-    name for name in dir(recursivenamespace) if not name.startswith("__")
+# Two-tier protection. Hard-protected names load-bearing for internal
+# logic raise KeyError on data collision. Soft-protected public method
+# names (deprecated direct-call shims + classmethod factories) emit
+# DeprecationWarning and let the data win — callers can still reach the
+# methods via ``obj._.<name>(...)``.
+# All single-underscore class attrs — the ``_`` proxy plus every
+# private helper (_re_, _process_, _chain_*_, _iter_to_dict_, etc.)
+# and ``_logger_``. Excludes Python dunders.
+_HARD_PROTECTED_CLASS_ATTRS: frozenset[str] = frozenset(
+    name
+    for name in dir(recursivenamespace)
+    if not name.startswith("__") and name.startswith("_")
+)
+_DEPRECATED_PUBLIC_METHODS: frozenset[str] = frozenset(
+    name for name in dir(recursivenamespace) if not name.startswith("_")
 )
 
 

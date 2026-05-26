@@ -149,38 +149,60 @@ class TestProtectedKeys:
             "overlay",
         ],
     )
-    def test_init_data_collides_with_method(self, name):
-        # Constructing from a dict whose key matches a public method
-        # must raise rather than silently shadowing the method.
-        with pytest.raises(KeyError, match="protected"):
-            RNS({name: "x"})
+    def test_init_data_collides_with_method_warns_and_accepts(self, name):
+        # Method names are soft-protected: data is accepted, a
+        # DeprecationWarning tells the caller to use obj._.<name>() for
+        # the method.
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            ns = RNS({name: "x"})
+        assert ns[name] == "x"
 
-    def test_init_kwargs_collides_with_method(self):
-        with pytest.raises(KeyError, match="protected"):
-            RNS(items=[1, 2, 3])
+    def test_init_kwargs_collides_with_method_warns_and_accepts(self):
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            ns = RNS(items=[1, 2, 3])
+        assert ns["items"] == [1, 2, 3]
 
-    def test_setitem_method_name_protected(self):
+    def test_setitem_method_name_warns_and_accepts(self):
         ns = RNS({"a": 1})
-        with pytest.raises(KeyError, match="protected"):
-            ns["to_dict"] = "bad"
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            ns["to_dict"] = "shadowed"
+        assert ns["to_dict"] == "shadowed"
 
-    def test_val_set_method_name_protected(self):
+    def test_val_set_method_name_warns_and_accepts(self):
         ns = RNS({"a": 1})
-        with pytest.raises(KeyError, match="protected"):
-            ns.val_set("update", "bad")
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            ns._.val_set("update", "shadowed")
+        assert ns["update"] == "shadowed"
 
     def test_methods_remain_callable_after_normal_init(self):
         # Sanity: the protection must not break ordinary usage.
         ns = RNS({"a": 1, "b": {"c": 2}})
-        assert ns.to_dict() == {"a": 1, "b": {"c": 2}}
-        assert ns.keys() == ["a", "b"]
-        assert "a" in dict(ns.items())
+        assert ns._.to_dict() == {"a": 1, "b": {"c": 2}}
+        assert ns._.keys() == ["a", "b"]
+        assert "a" in dict(ns._.items())
 
-    def test_nested_dict_method_collision_also_protected(self):
-        # Nested dicts are recursively wrapped, so the protection must
-        # propagate.
+    def test_nested_dict_method_collision_also_warns(self):
+        # Nested dicts are recursively wrapped, so the warning fires
+        # for the inner shadowing too.
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            ns = RNS({"outer": {"to_dict": "x"}})
+        assert ns.outer["to_dict"] == "x"
+
+    def test_underscore_helpers_still_hard_protected(self):
+        # Single-underscore helpers (and the state attrs) stay strict
+        # — shadowing them would break internal logic.
         with pytest.raises(KeyError, match="protected"):
-            RNS({"outer": {"to_dict": "x"}})
+            RNS({"_re_": "bad"})
+        with pytest.raises(KeyError, match="protected"):
+            RNS({"_chain_set_array_": "bad"})
+
+    def test_proxy_sees_shadowed_data_via_items(self):
+        # After shadowing, obj._.items() should include the shadowing
+        # entry alongside the rest of the data.
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            ns = RNS({"a": 1, "items": [1, 2, 3]})
+        d = ns._.to_dict()
+        assert d == {"a": 1, "items": [1, 2, 3]}
 
 
 # ── Copy / Deepcopy ────────────────────────────────────────────
@@ -363,31 +385,35 @@ class TestRnsDecorator:
         assert result.x == 10
         assert result.y == "world"
 
-    def test_dict_return_with_method_collision_protected(self):
+    def test_dict_return_with_method_collision_warns(self):
         @rns.rns()
         def create():
             return {"to_dict": "x", "name": "foo"}
 
-        with pytest.raises(KeyError, match="protected"):
-            create()
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            result = create()
+        assert result["to_dict"] == "x"
+        assert result.name == "foo"
 
-    def test_non_dict_return_with_props_collision_protected(self):
+    def test_non_dict_return_with_props_collision_warns(self):
         @rns.rns(props="items")
         def create():
             return [1, 2, 3]
 
-        with pytest.raises(KeyError, match="protected"):
-            create()
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            result = create()
+        assert result["items"] == [1, 2, 3]
 
-    def test_chain_key_dict_return_collision_protected(self):
+    def test_chain_key_dict_return_collision_warns(self):
         @rns.rns(use_chain_key=True)
         def create():
             return {"to_dict": "x"}
 
-        with pytest.raises(KeyError, match="protected"):
-            create()
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            result = create()
+        assert result["to_dict"] == "x"
 
-    def test_dataclass_field_collision_protected(self):
+    def test_dataclass_field_collision_warns(self):
         @dataclasses.dataclass
         class Bad:
             items: list = dataclasses.field(default_factory=list)
@@ -397,8 +423,9 @@ class TestRnsDecorator:
         def create():
             return Bad(items=[1, 2, 3], name="foo")
 
-        with pytest.raises(KeyError, match="protected"):
-            create()
+        with pytest.warns(DeprecationWarning, match="shadows"):
+            result = create()
+        assert result["items"] == [1, 2, 3]
 
 
 # ── Serialization error paths ───────────────────────────────────

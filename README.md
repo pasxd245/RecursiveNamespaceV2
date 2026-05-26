@@ -75,14 +75,18 @@ print(data2["address"]["city"])  # Anytown
 ## Accessing methods when data keys collide
 
 User data often contains keys like `"items"`, `"keys"`, `"update"`, or
-`"to_dict"`. To stop them from shadowing the library's methods, those
-names are reserved and `RNS({"items": [...]})` raises `KeyError`.
+`"to_dict"`. These names share namespace with library methods, so the
+library keeps them reachable from one canonical place: the `obj._`
+proxy.
 
-Starting in this release, every public method is also reachable through
-a `obj._` proxy. The proxy is the long-term API; the direct form
-(`obj.to_dict()`, `obj.items()`, …) still works but emits a
-`DeprecationWarning` and will be removed in a future major release. Once
-direct methods are gone, the names are freed for user data.
+- **Data with method-name keys is accepted.** `RNS({"items": [...]})`
+  works; the value is stored under `obj["items"]` and `obj.items`. A
+  `DeprecationWarning` reminds you that the matching method must now be
+  called as `obj._.items()`.
+- **Direct calls to the legacy methods** (`obj.to_dict()`,
+  `obj.items()`, …) also emit `DeprecationWarning` and forward to the
+  proxy. They will be removed in a future major release.
+- **`_` itself is reserved.** Data keys named `"_"` raise `KeyError`.
 
 ```python
 rn = RNS({"name": "John"})

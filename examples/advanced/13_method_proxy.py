@@ -11,12 +11,15 @@ import warnings
 from recursivenamespace import RNS
 
 # ── 1. Collision case ────────────────────────────────────────────
-# Method names are reserved — user data cannot use them as keys.
+# Method names are SOFT-protected: data is accepted, a
+# DeprecationWarning tells you the matching method must be called via
+# obj._.<name>().
 
-try:
-    RNS({"items": [1, 2, 3]})
-except KeyError as exc:
-    print(f"Expected protection: {exc}")
+with warnings.catch_warnings(record=True) as captured:
+    warnings.simplefilter("always", DeprecationWarning)
+    collision = RNS({"items": [1, 2, 3], "name": "John"})
+    print(f"Stored data: items={collision['items']}, name={collision.name}")
+    print(f"Shadow warning: {captured[0].message}")
 
 # ── 2. The proxy as the new access form ──────────────────────────
 # ``obj._.method()`` works without any deprecation warning.
@@ -54,8 +57,8 @@ with warnings.catch_warnings(record=True) as captured:
 rn2 = RNS.from_json('{"a": 1, "b": {"c": 2}}')
 print(f"\nRNS.from_json(...) -> {rn2._.to_dict()}")
 
-# ── 6. ``_`` is itself protected ─────────────────────────────────
-# Both data assignment and attribute assignment are blocked.
+# ── 6. ``_`` is the one hard-reserved name ───────────────────────
+# It backs the proxy itself, so it stays strictly protected.
 
 try:
     RNS({"_": "bad"})

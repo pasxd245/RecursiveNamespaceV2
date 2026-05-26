@@ -108,11 +108,6 @@ ipython_config.py
 #   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
 #poetry.lock
 
-# uv
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This ensures reproducibility in CI and development environments.
-uv.lock
-
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
 

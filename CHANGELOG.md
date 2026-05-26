@@ -1,6 +1,26 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.0.5] - 2026-05-26
+
+### Bug Fixes
+
+- Chain-key ops fall through to bound method on shadowed names([d627072](https://github.com/pasxd245/RecursiveNamespaceV2/commit/d62707298c85aa71e92699deb56fc42b80316acf))
+
+### Documentation
+
+- Migrate examples, benchmarks, and README to obj._ proxy([5422bee](https://github.com/pasxd245/RecursiveNamespaceV2/commit/5422bee9fc322be7c90fe76fcc5b25d95411f552))
+- Update CHANGELOG.md for v0.0.4([49eb7cb](https://github.com/pasxd245/RecursiveNamespaceV2/commit/49eb7cb8e07fa27e45a1738ac82791bbcb1e95e3))
+
+### Features
+
+- Escalate method-shadow warning to FutureWarning([cc85075](https://github.com/pasxd245/RecursiveNamespaceV2/commit/cc850757321d9aaa482792ce3326c63938aab9e2))
+
+### Other
+
+- Merge pull request #8 from pasxd245/dev
+
+Release v0.0.5: shadow-method bug fix + obj._ proxy migration([9a01108](https://github.com/pasxd245/RecursiveNamespaceV2/commit/9a01108bb2bdf32c21e99a6685e5b3632edd332c))
 ## [0.0.4] - 2026-05-26
 
 ### Documentation

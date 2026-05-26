@@ -81,12 +81,18 @@ proxy.
 
 - **Data with method-name keys is accepted.** `RNS({"items": [...]})`
   works; the value is stored under `obj["items"]` and `obj.items`. A
-  `DeprecationWarning` reminds you that the matching method must now be
-  called as `obj._.items()`.
+  `FutureWarning` reminds you that the matching method must now be
+  called as `obj._.items()`. `FutureWarning` (not `DeprecationWarning`)
+  so the signal surfaces under Python's default warning filter — you'll
+  see it the first time a user-supplied key collides, without needing
+  `-W default`.
 - **Direct calls to the legacy methods** (`obj.to_dict()`,
-  `obj.items()`, …) also emit `DeprecationWarning` and forward to the
+  `obj.items()`, …) emit `DeprecationWarning` and forward to the
   proxy. They will be removed in **v0.1.0** (the first stable release);
-  migrate to `obj._.<method>(...)` before then.
+  migrate to `obj._.<method>(...)` before then. Because this category
+  is silenced by Python's default filter, run with `-W default` or
+  enable warnings in your test runner (e.g. `pytest -W default`) to
+  see these during migration.
 - **`_` itself is reserved.** Data keys named `"_"` raise `KeyError`.
 
 ```python

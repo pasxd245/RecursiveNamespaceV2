@@ -107,8 +107,12 @@ Two tiers of names are reserved on the class:
   ``values``, ``items``, ``copy``, ``deepcopy``, ``pop``, ``as_schema``,
   ``to_json``/``from_json``, ``to_toml``/``from_toml``, etc. Storing a
   data field with one of these names is allowed but emits a
-  ``DeprecationWarning``: ``obj[name]`` / ``obj.name`` will return the
+  ``FutureWarning``: ``obj[name]`` / ``obj.name`` will return the
   data, and the method remains reachable via ``obj._.<name>(...)``.
+  ``FutureWarning`` is used (instead of ``DeprecationWarning``) so the
+  collision is visible under Python's default warning filter — you do
+  not need ``-W default`` to see a shadow event the first time it
+  happens.
 
 Classmethod Factories
 ~~~~~~~~~~~~~~~~~~~~~

@@ -151,26 +151,27 @@ class TestProtectedKeys:
     )
     def test_init_data_collides_with_method_warns_and_accepts(self, name):
         # Method names are soft-protected: data is accepted, a
-        # DeprecationWarning tells the caller to use obj._.<name>() for
-        # the method.
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        # FutureWarning tells the caller to use obj._.<name>() for
+        # the method. FutureWarning (not DeprecationWarning) so it's
+        # visible under Python's default warning filter.
+        with pytest.warns(FutureWarning, match="shadows"):
             ns = RNS({name: "x"})
         assert ns[name] == "x"
 
     def test_init_kwargs_collides_with_method_warns_and_accepts(self):
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             ns = RNS(items=[1, 2, 3])
         assert ns["items"] == [1, 2, 3]
 
     def test_setitem_method_name_warns_and_accepts(self):
         ns = RNS({"a": 1})
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             ns["to_dict"] = "shadowed"
         assert ns["to_dict"] == "shadowed"
 
     def test_val_set_method_name_warns_and_accepts(self):
         ns = RNS({"a": 1})
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             ns._.val_set("update", "shadowed")
         assert ns["update"] == "shadowed"
 
@@ -184,7 +185,7 @@ class TestProtectedKeys:
     def test_nested_dict_method_collision_also_warns(self):
         # Nested dicts are recursively wrapped, so the warning fires
         # for the inner shadowing too.
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             ns = RNS({"outer": {"to_dict": "x"}})
         assert ns.outer["to_dict"] == "x"
 
@@ -199,7 +200,7 @@ class TestProtectedKeys:
     def test_proxy_sees_shadowed_data_via_items(self):
         # After shadowing, obj._.items() should include the shadowing
         # entry alongside the rest of the data.
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             ns = RNS({"a": 1, "items": [1, 2, 3]})
         d = ns._.to_dict()
         assert d == {"a": 1, "items": [1, 2, 3]}
@@ -390,7 +391,7 @@ class TestRnsDecorator:
         def create():
             return {"to_dict": "x", "name": "foo"}
 
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             result = create()
         assert result["to_dict"] == "x"
         assert result.name == "foo"
@@ -400,7 +401,7 @@ class TestRnsDecorator:
         def create():
             return [1, 2, 3]
 
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             result = create()
         assert result["items"] == [1, 2, 3]
 
@@ -409,7 +410,7 @@ class TestRnsDecorator:
         def create():
             return {"to_dict": "x"}
 
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             result = create()
         assert result["to_dict"] == "x"
 
@@ -423,7 +424,7 @@ class TestRnsDecorator:
         def create():
             return Bad(items=[1, 2, 3], name="foo")
 
-        with pytest.warns(DeprecationWarning, match="shadows"):
+        with pytest.warns(FutureWarning, match="shadows"):
             result = create()
         assert result["items"] == [1, 2, 3]
 

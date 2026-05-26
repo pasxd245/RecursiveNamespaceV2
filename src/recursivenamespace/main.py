@@ -199,9 +199,14 @@ class recursivenamespace(SimpleNamespace):
         if key in self._protected__keys_:
             raise KeyError(f"The key '{key}' is protected.")
         if key in _DEPRECATED_PUBLIC_METHODS:
+            # FutureWarning (not DeprecationWarning) so the signal is
+            # visible under Python's default filter. The shadow is an
+            # end-user-data event — the caller's data collides with a
+            # library method name — and they need to see it without
+            # opting in via -W default.
             warnings.warn(
                 _SHADOW_TEMPLATE.format(name=key),
-                DeprecationWarning,
+                FutureWarning,
                 stacklevel=2,
             )
         setattr(self, key, value)
@@ -926,8 +931,10 @@ setattr(recursivenamespace, "_", _Descriptor())
 # Two-tier protection. Hard-protected names load-bearing for internal
 # logic raise KeyError on data collision. Soft-protected public method
 # names (deprecated direct-call shims + classmethod factories) emit
-# DeprecationWarning and let the data win — callers can still reach the
-# methods via ``obj._.<name>(...)``.
+# FutureWarning and let the data win — callers can still reach the
+# methods via ``obj._.<name>(...)``. FutureWarning (vs DeprecationWarning
+# on the @_deprecated call shims) because shadow events are caused by
+# end-user data and must surface under Python's default warning filter.
 # All single-underscore class attrs — the ``_`` proxy plus every
 # private helper (_re_, _process_, _chain_*_, _iter_to_dict_, etc.)
 # and ``_logger_``. Excludes Python dunders.

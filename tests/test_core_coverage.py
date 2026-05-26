@@ -314,6 +314,45 @@ class TestChainGetErrors:
             ns.val_get("a[].0.x.y")
 
 
+# ── Chain ops through deprecated method names ──────────────────
+
+
+class TestChainThroughDeprecatedNames:
+    """Regression: chain helpers used ``hasattr`` to test for an
+    existing key, which falsely matched class-level deprecated method
+    shims (``update``, ``items``, ``to_dict``, ...). Chain set/get
+    through such a name resolved to the bound method instead of the
+    user's data and raised SetChainKeyError / returned a method.
+    """
+
+    @pytest.mark.parametrize(
+        "name",
+        ["update", "items", "keys", "values", "to_dict", "pop", "copy"],
+    )
+    def test_set_chain_through_shadow_name(self, name):
+        ns = RNS({})
+        ns._.val_set(f"{name}.inner", 42)
+        assert ns._.val_get(f"{name}.inner") == 42
+
+    @pytest.mark.parametrize("name", ["items", "values", "keys"])
+    def test_set_array_under_shadow_name(self, name):
+        ns = RNS({})
+        ns._.val_set(f"{name}[].#", "a")
+        ns._.val_set(f"{name}[].#", "b")
+        assert ns._.val_get(f"{name}[].0") == "a"
+        assert ns._.val_get(f"{name}[].1") == "b"
+
+    def test_get_missing_shadow_name_raises_chain_error(self):
+        ns = RNS({})
+        with pytest.raises(GetChainKeyError):
+            ns._.val_get("update.inner")
+
+    def test_get_array_missing_shadow_name_raises_chain_error(self):
+        ns = RNS({})
+        with pytest.raises(GetChainKeyError):
+            ns._.val_get("items[].0")
+
+
 # ── get_or_else ─────────────────────────────────────────────────
 
 

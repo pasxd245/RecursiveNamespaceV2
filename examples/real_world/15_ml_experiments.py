@@ -27,7 +27,7 @@ experiment = RNS(
 )
 
 # Log parameters as flat dict (for MLflow, W&B, etc.)
-flat_params = experiment.to_dict(flatten_sep="/")
+flat_params = experiment._.to_dict(flatten_sep="/")
 print("Flat params for logger:")
 for k, v in flat_params.items():
     print(f"  {k}: {v}")
@@ -43,7 +43,7 @@ experiment["results"] = RNS(
 )
 
 # Save experiment as JSON
-experiment.save_json("/tmp/rns_experiment.json")
+experiment._.save_json("/tmp/rns_experiment.json")
 print(f"\nSaved experiment: {experiment.name}")
 
 # Load and compare later
@@ -55,5 +55,5 @@ print(f"  LR: {loaded.training.learning_rate}")
 # Quick hyperparameter sweep with overlay
 print("\nHyperparameter sweep:")
 for lr in [1e-5, 3e-5, 5e-5]:
-    with experiment.overlay({"training": RNS({"learning_rate": lr})}):
+    with experiment._.overlay({"training": RNS({"learning_rate": lr})}):
         print(f"  LR={experiment.training.learning_rate}")

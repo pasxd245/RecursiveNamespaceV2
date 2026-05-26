@@ -29,13 +29,13 @@ def bench_val_get(n: int = 10_000) -> float:
     data = build_deep_structure(5)
     ns = RNS(data)
     chain = "level_4.level_3.level_2.level_1.level_0.leaf"
-    t = timeit.timeit(lambda: ns.val_get(chain), number=n)
+    t = timeit.timeit(lambda: ns._.val_get(chain), number=n)
     return t
 
 
 def bench_val_set(n: int = 10_000) -> float:
     ns = RNS({})
-    t = timeit.timeit(lambda: ns.val_set("a.b.c.d.e", "value"), number=n)
+    t = timeit.timeit(lambda: ns._.val_set("a.b.c.d.e", "value"), number=n)
     return t
 
 

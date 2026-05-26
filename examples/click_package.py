@@ -81,7 +81,7 @@ def evaluate(**options):
         k,
         v,
     ) in (
-        results.items()
+        results._.items()
     ):  # results is RNS type. But you can treat is as dictionary.
         print(f" {str(k):<10s}: {v:8.4f}")
 

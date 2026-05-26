@@ -27,7 +27,7 @@ print(f"Nested set:   {nested.data.labels}")
 
 # raw_key mode disables key normalization
 raw = RNS({"my-key": 1, "other.key": 2}, use_raw_key=True)
-print(f"\nRaw keys: {raw.keys()}")
+print(f"\nRaw keys: {raw._.keys()}")
 # Access with original key names (no normalization)
 print(f"my-key: {getattr(raw, 'my-key')}")
 print(f"other.key: {getattr(raw, 'other.key')}")

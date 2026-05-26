@@ -18,7 +18,7 @@ Key features:
 
 - Recursive conversion of nested dicts/lists
 - Attribute and dict access (`rn.a` and `rn["a"]`)
-- Chain-key access (`rn.val_get("a.b.c")`)
+- Chain-key access (`rn._.val_get("a.b.c")`)
 - Array indexing and append syntax (`items[].0`, `items[].#`)
 - Typed, zero-dependency, pure Python
 

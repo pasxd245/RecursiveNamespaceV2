@@ -16,7 +16,7 @@ print("Production config:")
 print(f"  debug={config.debug}, db={config.database.host}")
 
 # Temporarily switch to development settings
-with config.overlay({"debug": True, "log_level": "DEBUG"}):
+with config._.overlay({"debug": True, "log_level": "DEBUG"}):
     print("\nDev overlay active:")
     print(f"  debug={config.debug}, log_level={config.log_level}")
     print(f"  db still={config.database.host}")  # unchanged
@@ -25,9 +25,9 @@ print("\nBack to production:")
 print(f"  debug={config.debug}, log_level={config.log_level}")
 
 # Nested overlays for testing
-with config.overlay({"cache_ttl": 0}):
+with config._.overlay({"cache_ttl": 0}):
     print(f"\nNo-cache overlay: ttl={config.cache_ttl}")
-    with config.overlay({"debug": True}):
+    with config._.overlay({"debug": True}):
         print(
             f"  + debug overlay: debug={config.debug}, ttl={config.cache_ttl}"
         )
